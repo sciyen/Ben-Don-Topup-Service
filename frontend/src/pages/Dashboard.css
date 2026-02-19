@@ -84,7 +84,7 @@
 /* --- Stats row --- */
 .stats-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 1.5rem;
     margin-bottom: 2rem;
     animation: fadeInUp 0.4s ease-out;
@@ -104,12 +104,24 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
-.stat-today {
-    border-left: 3px solid #6c63ff;
+.stat-topup {
+    border-left: 3px solid #22c55e;
+}
+
+.stat-spend {
+    border-left: 3px solid #ef4444;
 }
 
 .stat-count {
     border-left: 3px solid #00d2ff;
+}
+
+.stat-positive {
+    color: #86efac;
+}
+
+.stat-negative {
+    color: #fca5a5;
 }
 
 .stat-label {
@@ -206,7 +218,7 @@
 }
 
 .btn-submit {
-    background: linear-gradient(135deg, #6c63ff, #3f3d9e);
+    background: linear-gradient(135deg, #22c55e, #15803d);
     border: none;
     border-radius: 12px;
     padding: 0.85rem;
@@ -219,9 +231,17 @@
     font-family: inherit;
 }
 
+.btn-submit.btn-spend {
+    background: linear-gradient(135deg, #ef4444, #991b1b);
+}
+
 .btn-submit:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(108, 99, 255, 0.4);
+    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35);
+}
+
+.btn-submit.btn-spend:hover:not(:disabled) {
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.35);
 }
 
 .btn-submit:active:not(:disabled) {
@@ -231,6 +251,74 @@
 .btn-submit:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+/* --- Mode Toggle --- */
+.mode-toggle {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.mode-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.mode-btn.active-topup {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: rgba(34, 197, 94, 0.4);
+    color: #86efac;
+}
+
+.mode-btn.active-spend {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+/* --- Balance Card --- */
+.balance-card {
+    background: rgba(108, 99, 255, 0.08);
+    border: 1px solid rgba(108, 99, 255, 0.2);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.balance-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25rem;
+}
+
+.balance-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #c4b5fd;
+    font-variant-numeric: tabular-nums;
+}
+
+.balance-value.balance-zero {
+    color: #fca5a5;
 }
 
 .spinner {
@@ -319,6 +407,30 @@
     margin-bottom: 0.4rem;
 }
 
+.tx-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tx-type-badge {
+    font-size: 0.75rem;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+}
+
+.badge-topup {
+    background: rgba(34, 197, 94, 0.15);
+}
+
+.badge-spend {
+    background: rgba(239, 68, 68, 0.15);
+}
+
 .tx-customer {
     font-weight: 600;
     color: #fff;
@@ -327,9 +439,16 @@
 
 .tx-amount {
     font-weight: 700;
-    color: #6c63ff;
     font-size: 1.1rem;
     font-variant-numeric: tabular-nums;
+}
+
+.tx-positive {
+    color: #86efac;
+}
+
+.tx-negative {
+    color: #fca5a5;
 }
 
 .tx-details {
@@ -338,12 +457,23 @@
     align-items: center;
 }
 
-.tx-method {
-    font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.4);
-    background: rgba(255, 255, 255, 0.06);
-    padding: 0.15rem 0.5rem;
+.tx-type {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.1rem 0.5rem;
     border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.type-topup {
+    color: #86efac;
+    background: rgba(34, 197, 94, 0.12);
+}
+
+.type-spend {
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.12);
 }
 
 .tx-time {

@@ -22,8 +22,8 @@ function getDocsClient() {
  * @param {string} data.timestamp
  * @param {string} data.transactionId
  * @param {string} data.customer
- * @param {number} data.amount
- * @param {string} data.paymentMethod
+ * @param {string} data.type          - 'TOPUP' or 'SPEND'
+ * @param {number} data.amount        - positive for TOPUP, negative for SPEND
  * @param {string} data.cashierEmail
  * @param {string} data.note
  */
@@ -36,9 +36,9 @@ async function appendLog(data) {
             '─────────────────────────',
             `Timestamp: ${data.timestamp}`,
             `Transaction ID: ${data.transactionId}`,
+            `Type: ${data.type}`,
             `Customer: ${data.customer}`,
             `Amount: ${data.amount}`,
-            `Payment Method: ${data.paymentMethod}`,
             `Cashier: ${data.cashierEmail}`,
             `Note: ${data.note}`,
             '─────────────────────────',

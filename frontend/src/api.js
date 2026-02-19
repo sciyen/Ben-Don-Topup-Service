@@ -7,7 +7,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 /**
  * POST /api/topup — Submit a new top-up transaction
- * @param {Object} data - { customer, amount, paymentMethod, note, idempotencyKey }
+ * @param {Object} data - { customer, amount, note, idempotencyKey }
  * @param {string} token - Google ID token
  * @returns {Promise<Object>} Response data
  */
@@ -20,6 +20,56 @@ export async function postTopUp(data, token) {
         },
         body: JSON.stringify(data),
     });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+        throw new Error(json.error || `Request failed with status ${res.status}`);
+    }
+
+    return json;
+}
+
+/**
+ * POST /api/spend — Submit a spend (deduction) transaction
+ * @param {Object} data - { customer, amount, note, idempotencyKey }
+ * @param {string} token - Google ID token
+ * @returns {Promise<Object>} Response data
+ */
+export async function postSpend(data, token) {
+    const res = await fetch(`${API_BASE}/api/spend`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+        throw new Error(json.error || `Request failed with status ${res.status}`);
+    }
+
+    return json;
+}
+
+/**
+ * GET /api/balance?customer=xxx — Look up customer balance
+ * @param {string} customer - Customer name
+ * @param {string} token - Google ID token
+ * @returns {Promise<Object>} { customer, balance }
+ */
+export async function getBalance(customer, token) {
+    const res = await fetch(
+        `${API_BASE}/api/balance?customer=${encodeURIComponent(customer)}`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        }
+    );
 
     const json = await res.json();
 

@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { postTopUp, getTransactions } from '../api';
+import { postTopUp, postSpend, getTransactions, getBalance } from '../api';
 import './Dashboard.css';
 
 /**
  * Dashboard page component.
- * Shows transaction history, today's total, and the top-up form.
+ * Shows transaction history, balance lookup, and top-up / spend forms.
  */
 function Dashboard({ user, onLogout }) {
     const [transactions, setTransactions] = useState([]);
@@ -13,11 +13,18 @@ function Dashboard({ user, onLogout }) {
     const [submitting, setSubmitting] = useState(false);
     const [message, setMessage] = useState(null); // { type: 'success'|'error', text }
 
+    // Mode toggle: 'topup' or 'spend'
+    const [mode, setMode] = useState('topup');
+
     // Form state
     const [customer, setCustomer] = useState('');
     const [amount, setAmount] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState('Cash');
     const [note, setNote] = useState('');
+
+    // Balance state
+    const [balance, setBalance] = useState(null); // null = not looked up yet
+    const [balanceLoading, setBalanceLoading] = useState(false);
+    const [balanceCustomer, setBalanceCustomer] = useState(''); // tracks which customer the balance is for
 
     /**
      * Fetch recent transactions from the backend.
@@ -29,7 +36,6 @@ function Dashboard({ user, onLogout }) {
             setTransactions(data);
         } catch (err) {
             console.error('Failed to fetch transactions:', err);
-            // If auth fails, trigger logout
             if (err.message.includes('401') || err.message.includes('token')) {
                 onLogout();
             }
@@ -43,18 +49,55 @@ function Dashboard({ user, onLogout }) {
     }, [fetchTransactions]);
 
     /**
-     * Calculate today's total from loaded transactions.
+     * Fetch balance for the current customer in the form.
+     * Debounced: triggered when customer field loses focus or on demand.
      */
-    const todayTotal = transactions
+    const fetchBalance = useCallback(async (customerName, force = false) => {
+        if (!customerName || customerName.trim().length === 0) {
+            setBalance(null);
+            setBalanceCustomer('');
+            return;
+        }
+
+        const trimmed = customerName.trim();
+        // Don't re-fetch if already showing balance for same customer (unless forced)
+        if (!force && trimmed === balanceCustomer) return;
+
+        try {
+            setBalanceLoading(true);
+            const result = await getBalance(trimmed, user.token);
+            setBalance(result.balance);
+            setBalanceCustomer(trimmed);
+        } catch (err) {
+            console.error('Failed to fetch balance:', err);
+            setBalance(null);
+            setBalanceCustomer('');
+        } finally {
+            setBalanceLoading(false);
+        }
+    }, [user.token, balanceCustomer]);
+
+    /**
+     * Calculate today's totals from loaded transactions.
+     */
+    const todayTopups = transactions
         .filter((t) => {
             const txDate = new Date(t.timestamp).toDateString();
             const today = new Date().toDateString();
-            return txDate === today;
+            return txDate === today && t.type === 'TOPUP';
         })
         .reduce((sum, t) => sum + t.amount, 0);
 
+    const todaySpends = transactions
+        .filter((t) => {
+            const txDate = new Date(t.timestamp).toDateString();
+            const today = new Date().toDateString();
+            return txDate === today && t.type === 'SPEND';
+        })
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
     /**
-     * Handle form submission.
+     * Handle form submission — routes to the correct endpoint based on mode.
      */
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -74,30 +117,30 @@ function Dashboard({ user, onLogout }) {
         setSubmitting(true);
 
         try {
-            const result = await postTopUp(
-                {
-                    customer: customer.trim(),
-                    amount: parsedAmount,
-                    paymentMethod,
-                    note: note.trim(),
-                    idempotencyKey: uuidv4(),
-                },
-                user.token
-            );
+            const payload = {
+                customer: customer.trim(),
+                amount: parsedAmount,
+                note: note.trim(),
+                idempotencyKey: uuidv4(),
+            };
 
+            const submitFn = mode === 'topup' ? postTopUp : postSpend;
+            const result = await submitFn(payload, user.token);
+
+            const label = mode === 'topup' ? 'Top-Up' : 'Spend';
             setMessage({
                 type: 'success',
-                text: `✅ Transaction ${result.transactionID.slice(0, 8)}… recorded successfully`,
+                text: `✅ ${label} ${result.transactionID.slice(0, 8)}… recorded successfully`,
             });
 
             // Clear form
-            setCustomer('');
             setAmount('');
-            setPaymentMethod('Cash');
             setNote('');
 
-            // Refresh transaction list
+            // Refresh data
             await fetchTransactions();
+            // Force re-fetch balance for the same customer
+            await fetchBalance(customer.trim(), true);
         } catch (err) {
             setMessage({ type: 'error', text: `❌ ${err.message}` });
         } finally {
@@ -150,9 +193,13 @@ function Dashboard({ user, onLogout }) {
             <main className="dashboard-main">
                 {/* Stats Row */}
                 <div className="stats-row">
-                    <div className="stat-card stat-today">
-                        <div className="stat-label">Today's Total</div>
-                        <div className="stat-value">{formatAmount(todayTotal)}</div>
+                    <div className="stat-card stat-topup">
+                        <div className="stat-label">Today's Top-Ups</div>
+                        <div className="stat-value stat-positive">+{formatAmount(todayTopups)}</div>
+                    </div>
+                    <div className="stat-card stat-spend">
+                        <div className="stat-label">Today's Spending</div>
+                        <div className="stat-value stat-negative">-{formatAmount(todaySpends)}</div>
                     </div>
                     <div className="stat-card stat-count">
                         <div className="stat-label">Recent Transactions</div>
@@ -161,9 +208,33 @@ function Dashboard({ user, onLogout }) {
                 </div>
 
                 <div className="dashboard-grid">
-                    {/* Top-Up Form */}
+                    {/* Transaction Form */}
                     <section className="card form-card">
-                        <h2>New Top-Up</h2>
+                        {/* Mode Toggle */}
+                        <div className="mode-toggle">
+                            <button
+                                className={`mode-btn ${mode === 'topup' ? 'active-topup' : ''}`}
+                                onClick={() => { setMode('topup'); setMessage(null); }}
+                            >
+                                ⬆️ Top-Up
+                            </button>
+                            <button
+                                className={`mode-btn ${mode === 'spend' ? 'active-spend' : ''}`}
+                                onClick={() => { setMode('spend'); setMessage(null); }}
+                            >
+                                ⬇️ Spend
+                            </button>
+                        </div>
+
+                        {/* Balance Display */}
+                        {balance !== null && (
+                            <div className="balance-card">
+                                <div className="balance-label">Balance: {balanceCustomer}</div>
+                                <div className={`balance-value ${balance <= 0 ? 'balance-zero' : ''}`}>
+                                    {formatAmount(balance)}
+                                </div>
+                            </div>
+                        )}
 
                         {message && (
                             <div className={`alert alert-${message.type}`}>
@@ -178,7 +249,15 @@ function Dashboard({ user, onLogout }) {
                                     id="customer"
                                     type="text"
                                     value={customer}
-                                    onChange={(e) => setCustomer(e.target.value)}
+                                    onChange={(e) => {
+                                        setCustomer(e.target.value);
+                                        // Reset balance when customer changes
+                                        if (e.target.value.trim() !== balanceCustomer) {
+                                            setBalance(null);
+                                            setBalanceCustomer('');
+                                        }
+                                    }}
+                                    onBlur={() => fetchBalance(customer)}
                                     placeholder="Enter customer name"
                                     disabled={submitting}
                                     required
@@ -201,41 +280,28 @@ function Dashboard({ user, onLogout }) {
                             </div>
 
                             <div className="form-group">
-                                <label htmlFor="paymentMethod">Payment Method</label>
-                                <select
-                                    id="paymentMethod"
-                                    value={paymentMethod}
-                                    onChange={(e) => setPaymentMethod(e.target.value)}
-                                    disabled={submitting}
-                                >
-                                    <option value="Cash">Cash</option>
-                                    <option value="Bank Transfer">Bank Transfer</option>
-                                    <option value="QR Payment">QR Payment</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-
-                            <div className="form-group">
                                 <label htmlFor="note">Note (optional)</label>
                                 <input
                                     id="note"
                                     type="text"
                                     value={note}
                                     onChange={(e) => setNote(e.target.value)}
-                                    placeholder="e.g. February top-up"
+                                    placeholder={mode === 'topup' ? 'e.g. February top-up' : 'e.g. Purchase of materials'}
                                     disabled={submitting}
                                 />
                             </div>
 
                             <button
                                 type="submit"
-                                className="btn-submit"
+                                className={`btn-submit ${mode === 'spend' ? 'btn-spend' : ''}`}
                                 disabled={submitting}
                             >
                                 {submitting ? (
                                     <span className="spinner">⏳</span>
-                                ) : (
+                                ) : mode === 'topup' ? (
                                     '💸 Submit Top-Up'
+                                ) : (
+                                    '🛒 Submit Spend'
                                 )}
                             </button>
                         </form>
@@ -256,13 +322,20 @@ function Dashboard({ user, onLogout }) {
                                 {transactions.map((tx) => (
                                     <div key={tx.transactionId} className="tx-item">
                                         <div className="tx-main">
-                                            <div className="tx-customer">{tx.customer}</div>
-                                            <div className="tx-amount">
-                                                {formatAmount(tx.amount)}
+                                            <div className="tx-left">
+                                                <span className={`tx-type-badge ${tx.type === 'TOPUP' ? 'badge-topup' : 'badge-spend'}`}>
+                                                    {tx.type === 'TOPUP' ? '⬆' : '⬇'}
+                                                </span>
+                                                <span className="tx-customer">{tx.customer}</span>
+                                            </div>
+                                            <div className={`tx-amount ${tx.amount >= 0 ? 'tx-positive' : 'tx-negative'}`}>
+                                                {tx.amount >= 0 ? '+' : ''}{formatAmount(tx.amount)}
                                             </div>
                                         </div>
                                         <div className="tx-details">
-                                            <span className="tx-method">{tx.paymentMethod}</span>
+                                            <span className={`tx-type ${tx.type === 'TOPUP' ? 'type-topup' : 'type-spend'}`}>
+                                                {tx.type}
+                                            </span>
                                             <span className="tx-time">{formatTime(tx.timestamp)}</span>
                                         </div>
                                         {tx.note && <div className="tx-note">{tx.note}</div>}

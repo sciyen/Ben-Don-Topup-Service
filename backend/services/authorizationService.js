@@ -4,12 +4,18 @@
  *
  * Sheet "AuthorizedUsers" expected columns:
  * A: email | B: role | C: active
+ *
+ * Roles:
+ *   cashier — can top-up, spend, view balance
+ *   admin   — can top-up, spend, view balance
+ *   viewer  — can view balance and transactions only
  */
 const { google } = require('googleapis');
 const config = require('../config');
 
-// Roles allowed to perform top-up transactions
-const TOP_UP_ROLES = ['cashier', 'admin'];
+// Role sets for different permission levels
+const WRITE_ROLES = ['cashier', 'admin'];       // Can perform top-up and spend
+const READ_ROLES = ['cashier', 'admin', 'viewer']; // Can view balance and transactions
 
 /**
  * Gets an authenticated Google Sheets client using the service account.
@@ -23,11 +29,12 @@ function getSheetsClient() {
 }
 
 /**
- * Checks whether the given email is authorized to perform a top-up.
+ * Checks whether the given email is authorized for the specified action.
  * @param {string} email - The user's verified email address.
+ * @param {string[]} [requiredRoles] - Roles that grant access. Defaults to WRITE_ROLES.
  * @returns {Promise<{authorized: boolean, reason?: string}>}
  */
-async function checkAuthorization(email) {
+async function checkAuthorization(email, requiredRoles = WRITE_ROLES) {
     try {
         const sheets = getSheetsClient();
 
@@ -52,9 +59,10 @@ async function checkAuthorization(email) {
                     return { authorized: false, reason: 'User account is deactivated' };
                 }
 
-                // Check if role permits top-up
-                if (!role || !TOP_UP_ROLES.includes(role.toLowerCase().trim())) {
-                    return { authorized: false, reason: `Role '${role}' does not have top-up permission` };
+                // Check if role permits the requested action
+                const userRole = (role || '').toLowerCase().trim();
+                if (!requiredRoles.includes(userRole)) {
+                    return { authorized: false, reason: `Role '${role}' does not have permission for this action` };
                 }
 
                 return { authorized: true };
@@ -68,4 +76,4 @@ async function checkAuthorization(email) {
     }
 }
 
-module.exports = { checkAuthorization };
+module.exports = { checkAuthorization, WRITE_ROLES, READ_ROLES };

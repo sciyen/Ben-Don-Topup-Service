@@ -22,8 +22,8 @@ app.use(cors({
 // Parse JSON request bodies
 app.use(express.json());
 
-// Rate limiting on top-up endpoint (max 30 requests per minute per IP)
-const topupLimiter = rateLimit({
+// Rate limiting on write endpoints (max 30 requests per minute per IP)
+const writeLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 30,
     message: { error: 'Too many requests, please try again later' },
@@ -31,7 +31,8 @@ const topupLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-app.use('/api/topup', topupLimiter);
+app.use('/api/topup', writeLimiter);
+app.use('/api/spend', writeLimiter);
 
 // --- Routes ---
 app.use('/api', topupRoutes);

@@ -3,8 +3,11 @@
  * Handles all interactions with the Transactions sheet.
  *
  * Sheet "Transactions" columns (fixed order):
- * A: Timestamp | B: TransactionID | C: Customer | D: Amount
- * E: PaymentMethod | F: CashierEmail | G: Note | H: IdempotencyKey
+ * A: Timestamp | B: TransactionID | C: Customer | D: Type | E: Amount
+ * F: CashierEmail | G: Note | H: IdempotencyKey
+ *
+ * Type ∈ { TOPUP, SPEND }
+ * Amount: positive for TOPUP, negative for SPEND
  */
 const { google } = require('googleapis');
 const config = require('../config');
@@ -61,8 +64,8 @@ async function findByIdempotencyKey(key) {
  * @param {string} data.timestamp
  * @param {string} data.transactionId
  * @param {string} data.customer
- * @param {number} data.amount
- * @param {string} data.paymentMethod
+ * @param {string} data.type        - 'TOPUP' or 'SPEND'
+ * @param {number} data.amount      - positive for TOPUP, negative for SPEND
  * @param {string} data.cashierEmail
  * @param {string} data.note
  * @param {string} data.idempotencyKey
@@ -75,8 +78,8 @@ async function appendTransaction(data) {
             data.timestamp,
             data.transactionId,
             data.customer,
+            data.type,
             data.amount,
-            data.paymentMethod,
             data.cashierEmail,
             data.note,
             data.idempotencyKey,
@@ -98,11 +101,11 @@ async function appendTransaction(data) {
 }
 
 /**
- * Retrieves the last N transactions, ordered newest first.
- * @param {number} limit - Maximum number of transactions to return.
- * @returns {Promise<Array<Object>>} Array of transaction objects.
+ * Retrieves all transaction rows from the sheet.
+ * Used internally by balance computation and transaction listing.
+ * @returns {Promise<Array<Object>>} Array of transaction objects (oldest first).
  */
-async function getTransactions(limit = 20) {
+async function getAllTransactions() {
     try {
         const sheets = getSheetsClient();
 
@@ -114,26 +117,30 @@ async function getTransactions(limit = 20) {
         const rows = response.data.values;
         if (!rows || rows.length <= 1) return []; // No data rows (only header)
 
-        // Skip header, map to objects, reverse for newest first
-        const transactions = rows
-            .slice(1) // skip header
-            .map((row) => ({
-                timestamp: row[0] || '',
-                transactionId: row[1] || '',
-                customer: row[2] || '',
-                amount: parseFloat(row[3]) || 0,
-                paymentMethod: row[4] || '',
-                cashierEmail: row[5] || '',
-                note: row[6] || '',
-            }))
-            .reverse()
-            .slice(0, limit);
-
-        return transactions;
+        // Skip header, map to objects
+        return rows.slice(1).map((row) => ({
+            timestamp: row[0] || '',
+            transactionId: row[1] || '',
+            customer: row[2] || '',
+            type: row[3] || '',
+            amount: parseFloat(row[4]) || 0,
+            cashierEmail: row[5] || '',
+            note: row[6] || '',
+        }));
     } catch (error) {
         console.error('Failed to get transactions:', error.message);
         throw new Error('Failed to retrieve transactions');
     }
 }
 
-module.exports = { findByIdempotencyKey, appendTransaction, getTransactions };
+/**
+ * Retrieves the last N transactions, ordered newest first.
+ * @param {number} limit - Maximum number of transactions to return.
+ * @returns {Promise<Array<Object>>} Array of transaction objects.
+ */
+async function getTransactions(limit = 20) {
+    const all = await getAllTransactions();
+    return all.reverse().slice(0, limit);
+}
+
+module.exports = { findByIdempotencyKey, appendTransaction, getTransactions, getAllTransactions };
