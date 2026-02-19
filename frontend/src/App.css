@@ -1,0 +1,8 @@
+/* ==========================================
+   App.css — Global app-level styles
+   ========================================== */
+
+.app {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 40%, #24243e 100%);
+}

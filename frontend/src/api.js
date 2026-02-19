@@ -1,0 +1,53 @@
+/**
+ * API client module
+ * Handles all HTTP communication with the backend.
+ */
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+/**
+ * POST /api/topup — Submit a new top-up transaction
+ * @param {Object} data - { customer, amount, paymentMethod, note, idempotencyKey }
+ * @param {string} token - Google ID token
+ * @returns {Promise<Object>} Response data
+ */
+export async function postTopUp(data, token) {
+    const res = await fetch(`${API_BASE}/api/topup`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+        throw new Error(json.error || `Request failed with status ${res.status}`);
+    }
+
+    return json;
+}
+
+/**
+ * GET /api/transactions — Retrieve recent transactions
+ * @param {string} token - Google ID token
+ * @param {number} limit - Max transactions to return
+ * @returns {Promise<Array>} Array of transaction objects
+ */
+export async function getTransactions(token, limit = 20) {
+    const res = await fetch(`${API_BASE}/api/transactions?limit=${limit}`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+        throw new Error(json.error || `Request failed with status ${res.status}`);
+    }
+
+    return json.transactions;
+}

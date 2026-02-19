@@ -1,0 +1,94 @@
+/* ==========================================
+   Login Page Styles
+   Modern dark glassmorphism design
+   ========================================== */
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+  padding: 2rem;
+}
+
+.login-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 3rem 2.5rem;
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.login-icon {
+  font-size: 3.5rem;
+  margin-bottom: 0.5rem;
+  animation: bounce 2s ease infinite;
+}
+
+.login-card h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0.5rem 0 0.25rem;
+  letter-spacing: -0.02em;
+}
+
+.login-subtitle {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+  margin: 0 0 1.5rem;
+}
+
+.login-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  margin: 1.5rem 0;
+}
+
+.login-prompt {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.google-btn-container {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.login-footer {
+  margin-top: 2rem;
+}
+
+.login-footer p {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.75rem;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
