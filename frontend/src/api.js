@@ -101,3 +101,54 @@ export async function getTransactions(token, limit = 20) {
 
     return json.transactions;
 }
+
+/**
+ * POST /api/balance/batch — Look up balances for multiple customers
+ * @param {string[]} customers - Array of customer names
+ * @param {string} token - Google ID token
+ * @returns {Promise<Object>} Map of { customerName: balance }
+ */
+export async function postBatchBalances(customers, token) {
+    const res = await fetch(`${API_BASE}/api/balance/batch`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ customers }),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+        throw new Error(json.error || `Request failed with status ${res.status}`);
+    }
+
+    return json;
+}
+
+/**
+ * POST /api/checkout/batch — Execute an atomic batch checkout
+ * @param {Array<{customer: string, amount: number, note: string}>} rows
+ * @param {string} idempotencyKey
+ * @param {string} token - Google ID token
+ * @returns {Promise<Object>} Result with status, transactionCount, transactionIDs
+ */
+export async function postBatchCheckout(rows, idempotencyKey, token) {
+    const res = await fetch(`${API_BASE}/api/checkout/batch`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ rows, idempotencyKey }),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+        throw new Error(json.error || `Request failed with status ${res.status}`);
+    }
+
+    return json;
+}

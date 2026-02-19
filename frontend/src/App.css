@@ -6,3 +6,35 @@
   min-height: 100vh;
   background: linear-gradient(135deg, #0f0c29 0%, #302b63 40%, #24243e 100%);
 }
+
+/* --- App Navigation Tabs --- */
+.app-nav {
+  display: flex;
+  gap: 0;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0 2rem;
+}
+
+.nav-tab {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.nav-tab:hover {
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.nav-tab.nav-active {
+  color: #c4b5fd;
+  border-bottom-color: #6c63ff;
+}

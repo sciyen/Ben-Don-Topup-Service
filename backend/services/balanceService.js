@@ -31,4 +31,28 @@ async function computeCustomerBalance(customerName) {
     return balance;
 }
 
-module.exports = { computeCustomerBalance };
+/**
+ * Computes balances for multiple customers in a single ledger fetch.
+ * Much more efficient than calling computeCustomerBalance() for each customer.
+ *
+ * @param {string[]} customerNames - Array of customer names.
+ * @param {Array<Object>} [existingTransactions] - Optional pre-fetched transactions to avoid redundant reads.
+ * @returns {Promise<Object>} Map of { customerName: balance }.
+ */
+async function computeBatchBalances(customerNames, existingTransactions = null) {
+    const transactions = existingTransactions || await getAllTransactions();
+
+    const balances = {};
+
+    for (const name of customerNames) {
+        const normalizedName = name.toLowerCase().trim();
+
+        balances[name] = transactions
+            .filter((tx) => tx.customer.toLowerCase().trim() === normalizedName)
+            .reduce((sum, tx) => sum + tx.amount, 0);
+    }
+
+    return balances;
+}
+
+module.exports = { computeCustomerBalance, computeBatchBalances };

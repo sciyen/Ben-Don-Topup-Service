@@ -1,9 +1,11 @@
 /**
  * API Routes
- * POST /api/topup         — Execute a cash top-up transaction
- * POST /api/spend         — Execute a spend (deduction) transaction
- * GET  /api/balance       — Look up customer balance
- * GET  /api/transactions  — Retrieve recent transactions
+ * POST /api/topup           — Execute a cash top-up transaction
+ * POST /api/spend           — Execute a spend (deduction) transaction
+ * GET  /api/balance         — Look up customer balance
+ * POST /api/balance/batch   — Batch balance lookup
+ * POST /api/checkout/batch  — Atomic batch checkout
+ * GET  /api/transactions    — Retrieve recent transactions
  */
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
@@ -11,7 +13,8 @@ const { verifyToken } = require('../middleware/auth');
 const { checkAuthorization, WRITE_ROLES, READ_ROLES } = require('../services/authorizationService');
 const { findByIdempotencyKey, appendTransaction, getTransactions } = require('../services/sheetsService');
 const { appendLog } = require('../services/docsService');
-const { computeCustomerBalance } = require('../services/balanceService');
+const { computeCustomerBalance, computeBatchBalances } = require('../services/balanceService');
+const { executeBatchCheckout } = require('../services/batchCheckoutService');
 
 const router = express.Router();
 
@@ -221,6 +224,67 @@ router.get('/transactions', verifyToken, async (req, res) => {
         return res.status(200).json({ transactions });
     } catch (error) {
         console.error('Get transactions error:', error.message);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+/**
+ * POST /api/balance/batch
+ * Look up balances for multiple customers in a single request.
+ * Authentication required. Authorized roles: cashier, admin, viewer.
+ */
+router.post('/balance/batch', verifyToken, async (req, res) => {
+    try {
+        const { email } = req.user;
+
+        const authResult = await checkAuthorization(email, READ_ROLES);
+        if (!authResult.authorized) {
+            return res.status(403).json({ error: `Forbidden: ${authResult.reason}` });
+        }
+
+        const { customers } = req.body;
+        if (!customers || !Array.isArray(customers) || customers.length === 0) {
+            return res.status(400).json({ error: 'customers array is required' });
+        }
+
+        const balances = await computeBatchBalances(customers);
+        return res.status(200).json(balances);
+    } catch (error) {
+        console.error('Batch balance error:', error.message);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/checkout/batch
+ * Execute an atomic batch checkout (multiple SPEND transactions).
+ * Authentication required. Cashier role only.
+ *
+ * Body: { rows: [{customer, amount, note}], idempotencyKey }
+ */
+router.post('/checkout/batch', verifyToken, async (req, res) => {
+    try {
+        const { email } = req.user;
+
+        // Only cashier/admin can execute checkout
+        const authResult = await checkAuthorization(email, WRITE_ROLES);
+        if (!authResult.authorized) {
+            return res.status(403).json({ error: `Forbidden: ${authResult.reason}` });
+        }
+
+        const { rows, idempotencyKey } = req.body;
+
+        if (!idempotencyKey || typeof idempotencyKey !== 'string' || idempotencyKey.trim().length === 0) {
+            return res.status(400).json({ error: 'Idempotency key is required' });
+        }
+
+        const result = await executeBatchCheckout(rows, idempotencyKey, email);
+        return res.status(200).json(result);
+    } catch (error) {
+        // batchCheckoutService throws { statusCode, message }
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
+        console.error('Batch checkout error:', error.message || error);
         return res.status(500).json({ error: 'Internal server error' });
     }
 });

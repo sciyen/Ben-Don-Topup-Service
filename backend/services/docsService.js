@@ -71,4 +71,49 @@ async function appendLog(data) {
     }
 }
 
-module.exports = { appendLog };
+/**
+ * Appends a batch checkout header marker to the Google Doc.
+ * This is written once before the individual transaction entries.
+ * @param {string} batchId - The batch idempotency key.
+ * @param {string} timestamp - ISO 8601 timestamp.
+ * @param {number} rowCount - Number of rows in the batch.
+ */
+async function appendBatchHeader(batchId, timestamp, rowCount) {
+    try {
+        const docs = getDocsClient();
+
+        const header = [
+            '',
+            '═════════════════════════',
+            'BATCH CHECKOUT',
+            `Batch ID: ${batchId}`,
+            `Timestamp: ${timestamp}`,
+            `Rows: ${rowCount}`,
+            '═════════════════════════',
+        ].join('\n');
+
+        const doc = await docs.documents.get({ documentId: config.docId });
+        const endIndex = doc.data.body.content.reduce((max, element) => {
+            return Math.max(max, element.endIndex || 0);
+        }, 0);
+
+        await docs.documents.batchUpdate({
+            documentId: config.docId,
+            requestBody: {
+                requests: [
+                    {
+                        insertText: {
+                            location: { index: endIndex - 1 },
+                            text: '\n' + header,
+                        },
+                    },
+                ],
+            },
+        });
+    } catch (error) {
+        console.error('Failed to append batch header to Google Doc:', error.message);
+        throw new Error('Failed to write batch header log');
+    }
+}
+
+module.exports = { appendLog, appendBatchHeader };

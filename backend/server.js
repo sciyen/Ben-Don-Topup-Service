@@ -33,6 +33,7 @@ const writeLimiter = rateLimit({
 
 app.use('/api/topup', writeLimiter);
 app.use('/api/spend', writeLimiter);
+app.use('/api/checkout/batch', writeLimiter);
 
 // --- Routes ---
 app.use('/api', topupRoutes);
