@@ -1,7 +1,17 @@
 # Ben-Don Top-Up — Internal Cash Accounting Service
 
-A web-based internal accounting tool for handling cash top-up transactions.
+A web-based internal accounting tool for handling cash top-up and spend transactions.
 Transactions are recorded to Google Sheets and logged to Google Docs, authenticated via Google OAuth 2.0.
+
+## Features
+
+- **Top-Up & Spend** — record deposits and deductions per customer
+- **Dynamic Balance** — computed in real-time from the append-only ledger
+- **Auto Checkout** — paste a table from [dinbendon.net](https://dinbendon.net), preview balances, and batch-deduct in one click
+- **Overdraft Prevention** — single and batch spends are rejected if balance is insufficient
+- **Google Sheets Ledger** — append-only, never modifies past rows
+- **Google Docs Log** — human-readable transaction log
+- **Google OAuth 2.0** — role-based access (cashier / admin / viewer)
 
 ---
 
@@ -36,11 +46,10 @@ Google Sheets + Google Docs
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project (or select an existing one)
-3. Note the project ID
 
 ### 2. Enable Required APIs
 
-In the Google Cloud Console, navigate to **APIs & Services → Library** and enable:
+In **APIs & Services → Library**, enable:
 - **Google Sheets API**
 - **Google Docs API**
 
@@ -49,56 +58,42 @@ In the Google Cloud Console, navigate to **APIs & Services → Library** and ena
 1. Go to **APIs & Services → Credentials**
 2. Click **Create Credentials → OAuth client ID**
 3. Application type: **Web application**
-4. Name: `Ben-Don Top-Up`
-5. Authorized JavaScript origins:
-   - `http://localhost:5173` (for development)
-6. Authorized redirect URIs:
-   - `http://localhost:5173` (for development)
-7. Click **Create** and note the **Client ID**
+4. Authorized JavaScript origins: `http://localhost:5173`
+5. Authorized redirect URIs: `http://localhost:5173`
+6. Note the **Client ID**
 
-> You may need to configure the OAuth consent screen first. Set it to **Internal** if using Google Workspace, or **External** for testing.
+> Configure the OAuth consent screen first: **Internal** for Google Workspace, or **External** for testing.
 
 ### 4. Create a Service Account
 
-1. Go to **APIs & Services → Credentials**
-2. Click **Create Credentials → Service account**
-3. Name: `ben-don-topup-service`
-4. Click **Create and Continue**
-5. Grant role: skip (not needed)
-6. Click **Done**
-7. Click on the created service account
-8. Go to **Keys** tab → **Add Key → Create new key → JSON**
-9. Download the JSON key file
-10. Save it as `backend/service-account-key.json`
+1. Go to **APIs & Services → Credentials → Create Credentials → Service account**
+2. Name: `ben-don-topup-service`
+3. Go to **Keys** tab → **Add Key → Create new key → JSON**
+4. Save the JSON key file as `backend/service-account-key.json`
 
 ### 5. Set Up the Google Spreadsheet
 
 1. Create a new Google Spreadsheet
-2. Rename the first sheet tab to `Transactions`
-3. Add headers in row 1:
+2. Rename the first sheet tab to `Transactions` with headers:
    ```
-   Timestamp | TransactionID | Customer | Amount | PaymentMethod | CashierEmail | Note | IdempotencyKey
+   Timestamp | TransactionID | Customer | Type | Amount | CashierEmail | Note | IdempotencyKey
    ```
-4. Create a second sheet tab named `AuthorizedUsers`
-5. Add headers in row 1:
+3. Create a second sheet tab named `AuthorizedUsers` with headers:
    ```
    email | role | active
    ```
-6. Add your authorized user(s):
+4. Add your authorized user(s):
    ```
    alice@gmail.com | cashier | true
    ```
-7. **Share the spreadsheet** with the service account email (found in the JSON key file as `client_email`) with **Editor** access
-8. Note the **Spreadsheet ID** from the URL:
-   `https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit`
+5. **Share the spreadsheet** with the service account email (`client_email` in the JSON key) with **Editor** access
+6. Note the **Spreadsheet ID** from the URL
 
 ### 6. Set Up the Google Doc
 
-1. Create a new Google Doc (this will be the transaction log)
-2. Add a title like "Transaction Log"
-3. **Share the doc** with the service account email with **Editor** access
-4. Note the **Doc ID** from the URL:
-   `https://docs.google.com/document/d/{DOC_ID}/edit`
+1. Create a new Google Doc
+2. **Share** with the service account email with **Editor** access
+3. Note the **Doc ID** from the URL
 
 ---
 
@@ -142,66 +137,74 @@ VITE_API_URL=http://localhost:3001
 
 ## Running
 
-### Development
-
-Start both servers:
-
 ```bash
 # Terminal 1 — Backend
-cd backend
-npm run dev
+cd backend && npm run dev
 
 # Terminal 2 — Frontend
-cd frontend
-npm run dev
+cd frontend && npm run dev
 ```
 
 - Frontend: http://localhost:5173
 - Backend: http://localhost:3001
 
-### Usage
-
-1. Open http://localhost:5173 in your browser
-2. Click **Sign in with Google**
-3. Fill in the top-up form and submit
-4. Verify the transaction appears in recent transactions
-5. Check your Google Sheet and Doc for the new entries
-
 ---
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/topup` | Submit a cash top-up transaction |
-| GET | `/api/transactions?limit=20` | Get recent transactions |
-| GET | `/api/health` | Health check |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/topup` | cashier/admin | Submit a top-up (deposit) |
+| POST | `/api/spend` | cashier/admin | Submit a spend (deduction) with overdraft check |
+| GET | `/api/balance?customer=xxx` | all roles | Look up customer balance |
+| POST | `/api/balance/batch` | all roles | Batch balance lookup |
+| POST | `/api/checkout/batch` | cashier/admin | Atomic batch checkout |
+| GET | `/api/transactions?limit=20` | all roles | Get recent transactions |
+| GET | `/api/health` | none | Health check |
 
 ### POST /api/topup
 
-**Headers:** `Authorization: Bearer <ID_TOKEN>`
+```json
+{ "customer": "John", "amount": 500, "note": "Feb top-up", "idempotencyKey": "uuid" }
+```
 
-**Body:**
+### POST /api/spend
+
+```json
+{ "customer": "John", "amount": 100, "note": "Lunch", "idempotencyKey": "uuid" }
+```
+
+### POST /api/checkout/batch
+
 ```json
 {
-  "customer": "John Doe",
-  "amount": 500,
-  "paymentMethod": "Cash",
-  "note": "February top-up",
-  "idempotencyKey": "uuid-v4-string"
+  "rows": [
+    { "customer": "Alice", "amount": 35, "note": "酸辣湯" },
+    { "customer": "Bob", "amount": 95, "note": "古早味乾麵, 珍珠餛飩湯" }
+  ],
+  "idempotencyKey": "uuid"
 }
 ```
 
-**Response (200):**
-```json
-{
-  "status": "success",
-  "transactionID": "uuid-v4",
-  "timestamp": "2026-02-19T14:32:12.000Z"
-}
-```
+Returns `transactionCount`, `skippedCount`, and `skippedRows` details. Invalid rows are skipped, not rejected.
 
-**Error codes:** 400 (validation), 401 (auth), 403 (forbidden), 409 (duplicate), 500 (server error)
+---
+
+## Sheets Schema
+
+**Transactions** sheet columns:
+
+| Timestamp | TransactionID | Customer | Type | Amount | CashierEmail | Note | IdempotencyKey |
+
+- `Type` ∈ `{ TOPUP, SPEND }`
+- `Amount`: positive for TOPUP, negative for SPEND
+- Append-only — rows are never modified or deleted
+
+**AuthorizedUsers** sheet columns:
+
+| email | role | active |
+
+Roles: `cashier` (read+write), `admin` (read+write), `viewer` (read-only)
 
 ---
 
@@ -210,30 +213,31 @@ npm run dev
 ```
 ben-don-top-up/
 ├── backend/
-│   ├── server.js              # Express entry point
-│   ├── config.js              # Environment config
+│   ├── server.js                     # Express entry point
+│   ├── config.js                     # Environment config
 │   ├── middleware/
-│   │   └── auth.js            # Google ID token verification
+│   │   └── auth.js                   # Google ID token verification
 │   ├── services/
-│   │   ├── authorizationService.js   # AuthorizedUsers sheet check
-│   │   ├── sheetsService.js          # Google Sheets operations
-│   │   └── docsService.js            # Google Docs log appending
+│   │   ├── authorizationService.js   # Role-based authorization
+│   │   ├── sheetsService.js          # Google Sheets CRUD
+│   │   ├── docsService.js            # Google Docs log appending
+│   │   ├── balanceService.js         # Dynamic balance computation
+│   │   └── batchCheckoutService.js   # Atomic batch spend logic
 │   ├── routes/
-│   │   └── topup.js           # API route handlers
+│   │   └── topup.js                  # All API route handlers
 │   ├── .env.example
 │   └── package.json
 ├── frontend/
 │   ├── src/
-│   │   ├── main.jsx           # React entry point
-│   │   ├── App.jsx            # Root component with auth routing
+│   │   ├── main.jsx                  # React entry point
+│   │   ├── App.jsx                   # Root component with nav tabs
 │   │   ├── App.css
-│   │   ├── api.js             # Backend API client
-│   │   ├── index.css          # Global styles
+│   │   ├── api.js                    # Backend API client
+│   │   ├── index.css                 # Global styles
 │   │   └── pages/
-│   │       ├── Login.jsx      # Google Sign-In page
-│   │       ├── Login.css
-│   │       ├── Dashboard.jsx  # Main dashboard
-│   │       └── Dashboard.css
+│   │       ├── Login.jsx / .css      # Google Sign-In page
+│   │       ├── Dashboard.jsx / .css  # Top-Up, Spend, Balance
+│   │       └── AutoCheckout.jsx / .css # Batch checkout from clipboard
 │   ├── .env.example
 │   └── package.json
 └── README.md
@@ -243,9 +247,9 @@ ben-don-top-up/
 
 ## Security Notes
 
-- Google service account credentials are **backend-only** (never exposed to browser)
-- ID tokens are verified server-side using Google's token verification API
-- Transactions are append-only (no updates or deletes)
-- Rate limiting is applied to the `/api/topup` endpoint (30 req/min per IP)
-- All numeric inputs are validated on the backend
-- Authorization is checked against the AuthorizedUsers sheet on every request
+- Service account credentials are **backend-only** (never exposed to browser)
+- ID tokens verified server-side using Google's token verification API
+- Append-only ledger — no updates or deletes
+- Rate limiting on `/api/topup`, `/api/spend`, `/api/checkout/batch` (30 req/min per IP)
+- All inputs validated on the backend
+- Authorization checked on every request against the AuthorizedUsers sheet
