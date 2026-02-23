@@ -12,9 +12,16 @@ const app = express();
 
 // --- Middleware ---
 
-// CORS: allow frontend origin
+// CORS: allow multiple origins (frontend SPA + bookmarklet on dinbendon.net)
 app.use(cors({
-    origin: config.allowedOrigin,
+    origin: function (origin, callback) {
+        // Allow requests with no origin (e.g. server-to-server, curl)
+        if (!origin) return callback(null, true);
+        if (config.allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        return callback(new Error('Not allowed by CORS'));
+    },
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -46,5 +53,5 @@ app.get('/api/health', (req, res) => {
 // --- Start Server ---
 app.listen(config.port, () => {
     console.log(`🚀 Server running on port ${config.port}`);
-    console.log(`   Allowed origin: ${config.allowedOrigin}`);
+    console.log(`   Allowed origins: ${config.allowedOrigins.join(', ')}`);
 });

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ben-Don Login</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 40%, #24243e 100%);
+            color: #fff;
+        }
+
+        .auth-card {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2.5rem;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            max-width: 360px;
+            width: 90%;
+        }
+
+        .auth-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        h1 {
+            font-size: 1.3rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .auth-sub {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+
+        #g_id_signin {
+            display: flex;
+            justify-content: center;
+        }
+
+        .auth-status {
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="auth-card">
+        <div class="auth-icon">💰</div>
+        <h1>Ben-Don Top-Up</h1>
+        <p class="auth-sub">Sign in to authorize the bookmarklet</p>
+        <div id="g_id_signin"></div>
+        <p class="auth-status">This window will close automatically after sign-in.</p>
+    </div>
+    <script>
+        // Read client_id from query parameter or from a global
+        const params = new URLSearchParams(window.location.search);
+        const clientId = params.get('client_id');
+
+        if (!clientId) {
+            document.querySelector('.auth-status').textContent =
+                'Error: client_id query parameter is missing.';
+        }
+
+        window.onload = function () {
+            if (!clientId || !window.google?.accounts?.id) return;
+
+            google.accounts.id.initialize({
+                client_id: clientId,
+                callback: function (response) {
+                    if (response.credential && window.opener) {
+                        window.opener.postMessage(
+                            { type: 'BEN_DON_AUTH', credential: response.credential },
+                            '*'
+                        );
+                    }
+                    window.close();
+                },
+            });
+
+            google.accounts.id.renderButton(
+                document.getElementById('g_id_signin'),
+                { theme: 'filled_blue', size: 'large', shape: 'pill', text: 'signin_with', width: 280 }
+            );
+        };
+    </script>
+</body>
+
+</html>

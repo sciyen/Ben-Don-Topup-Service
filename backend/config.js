@@ -26,5 +26,8 @@ module.exports = {
   spreadsheetId: process.env.SPREADSHEET_ID,
   docId: process.env.DOC_ID,
   port: parseInt(process.env.PORT, 10) || 3001,
-  allowedOrigin: process.env.ALLOWED_ORIGIN || 'http://localhost:5173',
+  allowedOrigins: (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || 'http://localhost:5173')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean),
 };
