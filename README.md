@@ -58,18 +58,27 @@ In **APIs & Services → Library**, enable:
 1. Go to **APIs & Services → Credentials**
 2. Click **Create Credentials → OAuth client ID**
 3. Application type: **Web application**
-4. Authorized JavaScript origins: `http://localhost:5173`
-5. Authorized redirect URIs: `http://localhost:5173`
-6. Note the **Client ID**
+4. Name: `Ben-Don Top-Up`
+5. Authorized JavaScript origins:
+   - `http://localhost:5173` (for development)
+6. Authorized redirect URIs:
+   - `http://localhost:5173` (for development)
+7. Click **Create** and note the **Client ID**
 
-> Configure the OAuth consent screen first: **Internal** for Google Workspace, or **External** for testing.
+> You may need to configure the OAuth consent screen first. Set it to **Internal** if using Google Workspace, or **External** for testing.
 
 ### 4. Create a Service Account
 
-1. Go to **APIs & Services → Credentials → Create Credentials → Service account**
-2. Name: `ben-don-topup-service`
-3. Go to **Keys** tab → **Add Key → Create new key → JSON**
-4. Save the JSON key file as `backend/service-account-key.json`
+1. Go to **APIs & Services → Credentials**
+2. Click **Create Credentials → Service account**
+3. Name: `ben-don-topup-service`
+4. Click **Create and Continue**
+5. Grant role: skip (not needed)
+6. Click **Done**
+7. Click on the created service account
+8. Go to **Keys** tab → **Add Key → Create new key → JSON**
+9. Download the JSON key file
+10. Save it as `backend/service-account-key.json`
 
 ### 5. Set Up the Google Spreadsheet
 
@@ -86,14 +95,17 @@ In **APIs & Services → Library**, enable:
    ```
    alice@gmail.com | cashier | true
    ```
-5. **Share the spreadsheet** with the service account email (`client_email` in the JSON key) with **Editor** access
-6. Note the **Spreadsheet ID** from the URL
+5. **Share the spreadsheet** with the service account email (found in the JSON key file as `client_email`) with **Editor** access
+6. Note the **Spreadsheet ID** from the URL:
+   `https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit`
 
 ### 6. Set Up the Google Doc
 
-1. Create a new Google Doc
-2. **Share** with the service account email with **Editor** access
-3. Note the **Doc ID** from the URL
+1. Create a new Google Doc (this will be the transaction log)
+2. Add a title like "Transaction Log"
+3. **Share the doc** with the service account email with **Editor** access
+4. Note the **Doc ID** from the URL:
+   `https://docs.google.com/document/d/{DOC_ID}/edit`
 
 ---
 
@@ -136,6 +148,10 @@ VITE_API_URL=http://localhost:3001
 ---
 
 ## Running
+
+### Development
+
+Start both servers:
 
 ```bash
 # Terminal 1 — Backend
