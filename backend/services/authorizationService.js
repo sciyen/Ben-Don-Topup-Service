@@ -215,4 +215,20 @@ async function registerUser(name, email, password) {
     return { success: true, message: 'Registration successful' };
 }
 
-module.exports = { checkAuthorization, registerUser, loginUser, getUserInfo, WRITE_ROLES, READ_ROLES };
+/**
+ * Returns a list of all active user names.
+ * @returns {Promise<string[]>}
+ */
+async function getAllUserNames() {
+    const rows = await getAllAuthorizedUsers();
+    const names = [];
+    for (let i = 1; i < rows.length; i++) {
+        const [name, , , active] = rows[i];
+        if (name && (active || '').toLowerCase().trim() === 'true') {
+            names.push(name.trim());
+        }
+    }
+    return names;
+}
+
+module.exports = { checkAuthorization, registerUser, loginUser, getUserInfo, getAllUserNames, WRITE_ROLES, READ_ROLES };

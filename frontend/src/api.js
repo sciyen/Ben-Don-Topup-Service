@@ -55,6 +55,20 @@ export async function getMe(token) {
 }
 
 /**
+ * GET /api/users/names — Get all active user names (for autocomplete)
+ * @param {string} token - JWT token
+ * @returns {Promise<{names: string[]}>}
+ */
+export async function getUserNames(token) {
+    const res = await fetch(`${API_BASE}/api/users/names`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || `Request failed with status ${res.status}`);
+    return json;
+}
+
+/**
  * POST /api/topup — Submit a new top-up transaction
  * @param {Object} data - { customer, amount, note, idempotencyKey }
  * @param {string} token - JWT token

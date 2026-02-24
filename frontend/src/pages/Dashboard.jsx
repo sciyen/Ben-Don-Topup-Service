@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { postTopUp, postSpend, getTransactions, getBalance } from '../api';
+import { postTopUp, postSpend, getTransactions, getBalance, getUserNames } from '../api';
 import './Dashboard.css';
 
 /**
@@ -25,6 +25,7 @@ function Dashboard({ user, onLogout }) {
     const [balance, setBalance] = useState(null); // null = not looked up yet
     const [balanceLoading, setBalanceLoading] = useState(false);
     const [balanceCustomer, setBalanceCustomer] = useState(''); // tracks which customer the balance is for
+    const [customerNames, setCustomerNames] = useState([]); // all active user names for autocomplete
 
     /**
      * Fetch recent transactions from the backend.
@@ -47,6 +48,13 @@ function Dashboard({ user, onLogout }) {
     useEffect(() => {
         fetchTransactions();
     }, [fetchTransactions]);
+
+    // Fetch user names for autocomplete
+    useEffect(() => {
+        getUserNames(user.token)
+            .then((data) => setCustomerNames(data.names || []))
+            .catch(() => { /* ignore */ });
+    }, [user.token]);
 
     /**
      * Fetch balance for the current customer in the form.
@@ -258,10 +266,17 @@ function Dashboard({ user, onLogout }) {
                                         }
                                     }}
                                     onBlur={() => fetchBalance(customer)}
-                                    placeholder="Enter customer name"
+                                    placeholder="Type to search…"
                                     disabled={submitting}
                                     required
+                                    list="customer-names"
+                                    autoComplete="off"
                                 />
+                                <datalist id="customer-names">
+                                    {customerNames.map((name) => (
+                                        <option key={name} value={name} />
+                                    ))}
+                                </datalist>
                                 <span className="field-hint">Must match the exact name on dinbendon</span>
                             </div>
 

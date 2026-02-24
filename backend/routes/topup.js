@@ -13,7 +13,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../middleware/auth');
-const { checkAuthorization, registerUser, loginUser, getUserInfo, WRITE_ROLES, READ_ROLES } = require('../services/authorizationService');
+const { checkAuthorization, registerUser, loginUser, getUserInfo, getAllUserNames, WRITE_ROLES, READ_ROLES } = require('../services/authorizationService');
 const { findByIdempotencyKey, appendTransaction, getTransactions } = require('../services/sheetsService');
 const { appendLog } = require('../services/docsService');
 const { computeCustomerBalance, computeBatchBalances } = require('../services/balanceService');
@@ -46,6 +46,21 @@ router.post('/login', async (req, res) => {
             return res.status(error.statusCode).json({ error: error.message });
         }
         console.error('Login error:', error.message || error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/users/names
+ * Returns all active user names for autocomplete.
+ * Requires authentication.
+ */
+router.get('/users/names', verifyToken, async (req, res) => {
+    try {
+        const names = await getAllUserNames();
+        return res.status(200).json({ names });
+    } catch (error) {
+        console.error('Failed to fetch user names:', error.message || error);
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
