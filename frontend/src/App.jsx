@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AutoCheckout from './pages/AutoCheckout';
 import MyAccount from './pages/MyAccount';
+import InstallPlugin from './pages/InstallPlugin';
 import './App.css';
 
 /**
@@ -110,6 +111,12 @@ function App() {
             >
               🧾 Auto Checkout
             </button>
+            <button
+              className={`nav-tab ${page === 'plugin' ? 'nav-active' : ''}`}
+              onClick={() => setPage('plugin')}
+            >
+              🔌 Install Plugin
+            </button>
           </>
         )}
         <button
@@ -125,6 +132,9 @@ function App() {
       )}
       {page === 'checkout' && canWrite && (
         <AutoCheckout user={user} onNavigate={setPage} />
+      )}
+      {page === 'plugin' && canWrite && (
+        <InstallPlugin user={user} />
       )}
       {page === 'account' && (
         <MyAccount user={user} userInfo={userInfo} onLogout={handleLogout} />

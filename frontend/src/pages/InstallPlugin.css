@@ -1,0 +1,149 @@
+/* ==========================================
+   Install Plugin Page Styles
+   ========================================== */
+
+.install-page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+    color: #fff;
+}
+
+.install-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 2rem 2rem 2.5rem;
+}
+
+.install-card h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+}
+
+.install-subtitle {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
+    margin: 0 0 2rem;
+    line-height: 1.5;
+}
+
+/* Steps */
+.install-step {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.step-number {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(108, 99, 255, 0.2);
+    border: 1px solid rgba(108, 99, 255, 0.3);
+    border-radius: 50%;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #c4b5fd;
+}
+
+.step-content h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0.25rem 0 0.4rem;
+}
+
+.step-content p {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.6;
+    margin: 0 0 0.5rem;
+}
+
+.step-content kbd {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.75rem;
+    font-family: monospace;
+    color: #e2e8f0;
+}
+
+/* List styles */
+.install-list {
+    margin: 0.5rem 0;
+    padding-left: 1.2rem;
+    list-style: disc;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.8;
+}
+
+.install-list code {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    color: #c4b5fd;
+}
+
+.install-loading,
+.install-error {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.install-error {
+    color: #fca5a5;
+}
+
+.code-block-wrap {
+    position: relative;
+}
+
+.code-block {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.5);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 120px;
+    overflow-y: auto;
+    font-family: 'SFMono-Regular', 'Consolas', monospace;
+    margin: 0;
+}
+
+.btn-copy {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: rgba(108, 99, 255, 0.3);
+    border: 1px solid rgba(108, 99, 255, 0.4);
+    color: #fff;
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s ease;
+}
+
+.btn-copy:hover:not(:disabled) {
+    background: rgba(108, 99, 255, 0.5);
+}
+
+.btn-copy:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
