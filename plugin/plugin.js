@@ -442,6 +442,7 @@
             // Inject UI if not yet done
             injectHeaderCell();
             injectRowCells();
+            lastTableRef = getTable(); // track for re-injection detection
 
             balances = await fetchBatchBalances(customers);
             updateRowBalances();
@@ -590,34 +591,49 @@
     // ─── MutationObserver: re-inject when Wicket AJAX replaces DOM ──
 
     let mutationObserver = null;
+    let lastTableRef = null; // track the table element we injected into
+    let reinjectTimer = null;
 
     function startTableObserver() {
-        const table = getTable();
-        if (!table || mutationObserver) return;
+        if (mutationObserver) return; // only one global observer
 
-        mutationObserver = new MutationObserver(function (mutations) {
-            // Check if our injected cells were removed (Wicket replaces tbody)
-            const needsReinject = mutations.some(function (m) {
-                return m.type === 'childList' && m.removedNodes.length > 0;
-            });
+        mutationObserver = new MutationObserver(function () {
+            if (!authToken) return;
 
-            if (needsReinject && authToken) {
-                // Debounce: Wicket may fire multiple mutations
-                clearTimeout(startTableObserver._timer);
-                startTableObserver._timer = setTimeout(function () {
-                    console.log('💰 Table DOM changed — re-injecting Top-Up column');
-                    injectHeaderCell();
-                    injectRowCells();
-                    updateRowBalances();
-                }, 200);
+            const currentTable = getTable();
+
+            // Case 1: Table was replaced with a new element (common Wicket behavior)
+            if (currentTable && currentTable !== lastTableRef) {
+                scheduleReinject('table replaced');
+                return;
+            }
+
+            // Case 2: Table still exists but our injected cells are gone
+            if (currentTable && !currentTable.querySelector('.bendon-header')) {
+                scheduleReinject('injected cells missing');
+                return;
             }
         });
 
-        // Observe the table and its parent (Wicket may replace the entire table)
-        mutationObserver.observe(table.parentNode || table, {
+        // Observe the entire document body — survives any level of DOM replacement
+        mutationObserver.observe(document.body, {
             childList: true,
             subtree: true,
         });
+    }
+
+    function scheduleReinject(reason) {
+        // Debounce — Wicket may fire many mutations in rapid succession
+        clearTimeout(reinjectTimer);
+        reinjectTimer = setTimeout(function () {
+            console.log('💰 Re-injecting Top-Up column (' + reason + ')');
+            lastTableRef = getTable();
+            if (lastTableRef) {
+                injectHeaderCell();
+                injectRowCells();
+                updateRowBalances();
+            }
+        }, 200);
     }
 
     // ─── Initialize ──────────────────────────────────────
