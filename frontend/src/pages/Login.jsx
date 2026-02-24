@@ -45,6 +45,11 @@ function Login({ onLogin }) {
         e.preventDefault();
         if (!regName.trim() || !regEmail.trim() || !regPassword) return;
 
+        const confirmed = window.confirm(
+            `Is "${regName.trim()}" the exact display name you use on dinbendon?\n\nThis must match exactly for checkout to work. You can not modify this later.`
+        );
+        if (!confirmed) return;
+
         setRegLoading(true);
         setRegMessage(null);
 
@@ -132,7 +137,7 @@ function Login({ onLogin }) {
                 {tab === 'register' && (
                     <form className="auth-form" onSubmit={handleRegister}>
                         <div className="auth-field">
-                            <label htmlFor="reg-name">Display Name</label>
+                            <label htmlFor="reg-name">DinBenDon User Name</label>
                             <input
                                 id="reg-name"
                                 type="text"
@@ -143,6 +148,7 @@ function Login({ onLogin }) {
                                 required
                                 autoFocus
                             />
+                            <span className="auth-hint">⚠️ Must match your exact name on dinbendon</span>
                         </div>
                         <div className="auth-field">
                             <label htmlFor="reg-email">Email</label>

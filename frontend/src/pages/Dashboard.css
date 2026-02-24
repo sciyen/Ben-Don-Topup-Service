@@ -217,6 +217,13 @@
     color: #fff;
 }
 
+.field-hint {
+    display: block;
+    font-size: 0.7rem;
+    color: rgba(255, 200, 50, 0.6);
+    margin-top: 0.3rem;
+}
+
 .btn-submit {
     background: linear-gradient(135deg, #22c55e, #15803d);
     border: none;

@@ -262,6 +262,7 @@ function Dashboard({ user, onLogout }) {
                                     disabled={submitting}
                                     required
                                 />
+                                <span className="field-hint">Must match the exact name on dinbendon</span>
                             </div>
 
                             <div className="form-group">
