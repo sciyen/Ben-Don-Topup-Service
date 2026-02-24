@@ -16,29 +16,26 @@ import './App.css';
  *   cashier / admin → Dashboard, Auto Checkout, My Account
  */
 function App() {
-  const [user, setUser] = useState(null);     // { email, name, picture, token }
+  const [user, setUser] = useState(null);       // { email, name, role, token }
   const [userInfo, setUserInfo] = useState(null); // { name, email, role, active }
-  const [page, setPage] = useState(null);     // set after role is known
+  const [page, setPage] = useState(null);
   const [roleLoading, setRoleLoading] = useState(false);
 
   /**
-   * Called after successful Google Sign-In.
+   * Called after successful login.
+   * @param {string} token - JWT
+   * @param {Object} loginUser - { name, email, role } from login response
    */
-  const handleLogin = useCallback((credential) => {
-    try {
-      const payload = JSON.parse(atob(credential.split('.')[1]));
-      setUser({
-        email: payload.email,
-        name: payload.name || payload.email,
-        picture: payload.picture || null,
-        token: credential,
-      });
-    } catch {
-      console.error('Failed to decode token');
-    }
+  const handleLogin = useCallback((token, loginUser) => {
+    setUser({
+      email: loginUser.email,
+      name: loginUser.name,
+      picture: null,
+      token,
+    });
   }, []);
 
-  // Fetch user role after login
+  // Fetch full user profile after login
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -49,7 +46,6 @@ function App() {
         const info = await getMe(user.token);
         if (!cancelled) {
           setUserInfo(info);
-          // Set default page based on role
           const role = (info.role || '').toLowerCase();
           if (role === 'buyer' || role === 'viewer') {
             setPage('account');
@@ -59,10 +55,9 @@ function App() {
         }
       } catch (err) {
         console.error('Failed to fetch user info:', err.message);
-        // If user not found, they may not be registered
         if (!cancelled) {
           setUserInfo(null);
-          setPage('account'); // fallback to account page
+          setPage('account');
         }
       } finally {
         if (!cancelled) setRoleLoading(false);
@@ -77,12 +72,8 @@ function App() {
     setUser(null);
     setUserInfo(null);
     setPage(null);
-    if (window.google?.accounts?.id) {
-      window.google.accounts.id.disableAutoSelect();
-    }
   }, []);
 
-  // Determine which tabs are visible
   const role = (userInfo?.role || '').toLowerCase();
   const canWrite = role === 'cashier' || role === 'admin';
 
@@ -104,7 +95,6 @@ function App() {
 
   return (
     <div className="app">
-      {/* Navigation Tabs */}
       <nav className="app-nav">
         {canWrite && (
           <>

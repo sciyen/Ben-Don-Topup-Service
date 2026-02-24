@@ -1,9 +1,9 @@
 /**
  * Authorization Service
- * Checks user permissions against the AuthorizedUsers sheet tab.
+ * Manages user auth against the AuthorizedUsers sheet tab.
  *
  * Sheet "AuthorizedUsers" expected columns:
- * A: name | B: email | C: role | D: active
+ * A: name | B: email | C: role | D: active | E: password_hash
  *
  * Roles:
  *   cashier — can top-up, spend, view balance
@@ -12,10 +12,14 @@
  *   buyer   — default role for self-registered users
  */
 const { google } = require('googleapis');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const config = require('../config');
 
+const SALT_ROUNDS = 10;
+
 // Role sets for different permission levels
-const WRITE_ROLES = ['cashier', 'admin'];        // Can perform top-up and spend
+const WRITE_ROLES = ['cashier', 'admin'];         // Can perform top-up and spend
 const READ_ROLES = ['cashier', 'admin', 'viewer', 'buyer']; // Can view balance and transactions
 
 /**
@@ -48,7 +52,7 @@ async function getAllAuthorizedUsers() {
     const sheets = getSheetsClientReadOnly();
     const response = await sheets.spreadsheets.values.get({
         spreadsheetId: config.spreadsheetId,
-        range: 'AuthorizedUsers!A:D',
+        range: 'AuthorizedUsers!A:E',
     });
     return response.data.values || [];
 }
@@ -67,18 +71,15 @@ async function checkAuthorization(email, requiredRoles = WRITE_ROLES) {
             return { authorized: false, reason: 'No authorized users configured' };
         }
 
-        // Skip header row, find matching email
-        // Columns: A=name, B=email, C=role, D=active
+        // Columns: A=name, B=email, C=role, D=active, E=password_hash
         for (let i = 1; i < rows.length; i++) {
             const [, rowEmail, role, active] = rows[i];
 
             if (rowEmail && rowEmail.toLowerCase().trim() === email.toLowerCase().trim()) {
-                // Check if user is active
                 if (active && active.toLowerCase().trim() !== 'true') {
                     return { authorized: false, reason: 'User account is deactivated' };
                 }
 
-                // Check if role permits the requested action
                 const userRole = (role || '').toLowerCase().trim();
                 if (!requiredRoles.includes(userRole)) {
                     return { authorized: false, reason: `Role '${role}' does not have permission for this action` };
@@ -96,46 +97,9 @@ async function checkAuthorization(email, requiredRoles = WRITE_ROLES) {
 }
 
 /**
- * Registers a new user by appending to the AuthorizedUsers sheet.
- * Rejects if the email already exists.
- *
- * @param {string} name - User's display name.
- * @param {string} email - User's Gmail address.
- * @returns {Promise<{success: boolean, message: string}>}
- * @throws {Object} { statusCode, message } on failure.
- */
-async function registerUser(name, email) {
-    // 1. Fetch all existing users to check for duplicates
-    const rows = await getAllAuthorizedUsers();
-
-    // Columns: A=name, B=email, C=role, D=active
-    for (let i = 1; i < rows.length; i++) {
-        const rowEmail = (rows[i][1] || '').toLowerCase().trim();
-        if (rowEmail === email.toLowerCase().trim()) {
-            throw { statusCode: 409, message: 'This email is already registered' };
-        }
-    }
-
-    // 2. Append new row: [name, email, buyer, TRUE]
-    const sheets = getSheetsClientReadWrite();
-    await sheets.spreadsheets.values.append({
-        spreadsheetId: config.spreadsheetId,
-        range: 'AuthorizedUsers!A:D',
-        valueInputOption: 'RAW',
-        insertDataOption: 'INSERT_ROWS',
-        resource: {
-            values: [[name.trim(), email.trim(), 'buyer', 'TRUE']],
-        },
-    });
-
-    console.log(`✅ Registered new user: ${name.trim()} (${email.trim()}) as buyer`);
-    return { success: true, message: 'Registration successful' };
-}
-
-/**
- * Retrieves user info (name, role, active) for the given email.
- * @param {string} email - The user's verified email.
- * @returns {Promise<{name: string, email: string, role: string, active: boolean} | null>}
+ * Retrieves user info for the given email.
+ * @param {string} email
+ * @returns {Promise<{name, email, role, active} | null>}
  */
 async function getUserInfo(email) {
     const rows = await getAllAuthorizedUsers();
@@ -155,4 +119,100 @@ async function getUserInfo(email) {
     return null;
 }
 
-module.exports = { checkAuthorization, registerUser, getUserInfo, WRITE_ROLES, READ_ROLES };
+/**
+ * Authenticates a user by email and password.
+ * Returns a signed JWT on success.
+ *
+ * @param {string} email
+ * @param {string} password
+ * @returns {Promise<{token: string, user: {name, email, role}}>}
+ * @throws {{ statusCode: number, message: string }}
+ */
+async function loginUser(email, password) {
+    const rows = await getAllAuthorizedUsers();
+
+    for (let i = 1; i < rows.length; i++) {
+        const [name, rowEmail, role, active, passwordHash] = rows[i];
+
+        if (rowEmail && rowEmail.toLowerCase().trim() === email.toLowerCase().trim()) {
+            // Check if active
+            if (active && active.toLowerCase().trim() !== 'true') {
+                throw { statusCode: 403, message: 'User account is deactivated' };
+            }
+
+            // Check password
+            if (!passwordHash) {
+                throw { statusCode: 401, message: 'No password set. Please contact an administrator.' };
+            }
+
+            const match = await bcrypt.compare(password, passwordHash);
+            if (!match) {
+                throw { statusCode: 401, message: 'Invalid email or password' };
+            }
+
+            // Issue JWT
+            const userPayload = {
+                email: rowEmail.trim(),
+                name: (name || '').trim(),
+                role: (role || '').toLowerCase().trim(),
+            };
+
+            const token = jwt.sign(userPayload, config.jwtSecret, {
+                expiresIn: config.jwtExpiresIn,
+            });
+
+            return { token, user: userPayload };
+        }
+    }
+
+    throw { statusCode: 401, message: 'Invalid email or password' };
+}
+
+/**
+ * Registers a new user by appending to the AuthorizedUsers sheet.
+ * Rejects if the email already exists.
+ *
+ * @param {string} name
+ * @param {string} email
+ * @param {string} password - plaintext (will be hashed)
+ * @returns {Promise<{success: boolean, message: string}>}
+ * @throws {{ statusCode: number, message: string }}
+ */
+async function registerUser(name, email, password) {
+    // 1. Validate email domain
+    if (config.allowedEmailDomains.length > 0) {
+        const domain = email.split('@')[1]?.toLowerCase().trim();
+        if (!domain || !config.allowedEmailDomains.includes(domain)) {
+            throw { statusCode: 400, message: `Only emails from these domains are allowed: ${config.allowedEmailDomains.join(', ')}` };
+        }
+    }
+
+    // 2. Check for duplicate email
+    const rows = await getAllAuthorizedUsers();
+    for (let i = 1; i < rows.length; i++) {
+        const rowEmail = (rows[i][1] || '').toLowerCase().trim();
+        if (rowEmail === email.toLowerCase().trim()) {
+            throw { statusCode: 409, message: 'This email is already registered' };
+        }
+    }
+
+    // 2. Hash password
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+    // 3. Append new row: [name, email, buyer, TRUE, passwordHash]
+    const sheets = getSheetsClientReadWrite();
+    await sheets.spreadsheets.values.append({
+        spreadsheetId: config.spreadsheetId,
+        range: 'AuthorizedUsers!A:E',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        resource: {
+            values: [[name.trim(), email.trim(), 'buyer', 'TRUE', passwordHash]],
+        },
+    });
+
+    console.log(`✅ Registered new user: ${name.trim()} (${email.trim()}) as buyer`);
+    return { success: true, message: 'Registration successful' };
+}
+
+module.exports = { checkAuthorization, registerUser, loginUser, getUserInfo, WRITE_ROLES, READ_ROLES };

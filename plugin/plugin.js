@@ -10,11 +10,10 @@
 (function () {
     'use strict';
 
-    // ─── Configuration ───────────────────────────────────
+    // ─── Configuration ─────────────────────────────────────
     const CONFIG = {
         API_BASE: 'http://localhost:3001',           // Backend API URL
         AUTH_PAGE: 'http://localhost:5173/auth.html', // Auth popup URL (on our domain)
-        GOOGLE_CLIENT_ID: '',                        // Set your Google Client ID here
     };
 
     // ─── Guard: prevent double injection ─────────────────
@@ -26,7 +25,7 @@
     window.__BEN_DON_LOADED = true;
 
     // ─── State ───────────────────────────────────────────
-    let authToken = null;   // Google ID token (in-memory only)
+    let authToken = null;   // JWT (in-memory only)
     let userName = null;
     let balances = {};      // { customerName: balance }
     const checkedOutCustomers = new Set(); // track successful checkouts across DOM rebuilds
@@ -102,21 +101,20 @@
         });
     }
 
-    // ─── Auth (popup flow) ───────────────────────────────
+    // ─── Auth (popup flow) ───────────────────────────
 
     function openLoginPopup() {
-        const url = `${CONFIG.AUTH_PAGE}?client_id=${encodeURIComponent(CONFIG.GOOGLE_CLIENT_ID)}`;
-        const w = 420, h = 520;
+        const url = `${CONFIG.AUTH_PAGE}?api_base=${encodeURIComponent(CONFIG.API_BASE)}`;
+        const w = 420, h = 480;
         const left = (screen.width - w) / 2;
         const top = (screen.height - h) / 2;
         window.open(url, 'BenDonAuth', `width=${w},height=${h},left=${left},top=${top}`);
     }
 
     window.addEventListener('message', function (event) {
-        if (event.data?.type === 'BEN_DON_AUTH' && event.data.credential) {
-            authToken = event.data.credential;
-            const payload = decodeJwt(authToken);
-            userName = payload?.name || payload?.email || 'User';
+        if (event.data?.type === 'BEN_DON_AUTH' && event.data.token) {
+            authToken = event.data.token;
+            userName = event.data.name || 'User';
             updatePanelState();
             refreshAllBalances();
         }

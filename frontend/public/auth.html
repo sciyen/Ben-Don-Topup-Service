@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ben-Don Login</title>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         * {
             margin: 0;
@@ -27,10 +26,10 @@
             background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
-            padding: 2.5rem;
+            padding: 2rem;
             text-align: center;
             backdrop-filter: blur(12px);
-            max-width: 360px;
+            max-width: 340px;
             width: 90%;
         }
 
@@ -40,25 +39,75 @@
         }
 
         h1 {
-            font-size: 1.3rem;
-            margin-bottom: 0.25rem;
-        }
-
-        .auth-sub {
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 0.85rem;
+            font-size: 1.2rem;
             margin-bottom: 1.5rem;
         }
 
-        #g_id_signin {
-            display: flex;
-            justify-content: center;
+        .field {
+            text-align: left;
+            margin-bottom: 0.75rem;
         }
 
-        .auth-status {
-            margin-top: 1rem;
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.4);
+        .field label {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .field input {
+            width: 100%;
+            padding: 0.55rem 0.75rem;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+        }
+
+        .field input:focus {
+            border-color: #6c63ff;
+        }
+
+        .field input::placeholder {
+            color: rgba(255, 255, 255, 0.25);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 0.6rem;
+            margin-top: 0.5rem;
+            background: #6c63ff;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .btn-login:hover {
+            background: #5a52e0;
+        }
+
+        .btn-login:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .msg {
+            margin-top: 0.75rem;
+            font-size: 0.78rem;
+        }
+
+        .msg.error {
+            color: #fca5a5;
         }
     </style>
 </head>
@@ -66,42 +115,63 @@
 <body>
     <div class="auth-card">
         <div class="auth-icon">💰</div>
-        <h1>Ben-Don Top-Up</h1>
-        <p class="auth-sub">Sign in to authorize the bookmarklet</p>
-        <div id="g_id_signin"></div>
-        <p class="auth-status">This window will close automatically after sign-in.</p>
+        <h1>Ben-Don Top-Up — Login</h1>
+        <form id="login-form">
+            <div class="field">
+                <label for="email">Email</label>
+                <input id="email" type="email" placeholder="you@example.com" required autofocus>
+            </div>
+            <div class="field">
+                <label for="password">Password</label>
+                <input id="password" type="password" placeholder="Enter password" required>
+            </div>
+            <button type="submit" class="btn-login" id="btn-submit">🔑 Sign In</button>
+        </form>
+        <p class="msg" id="msg"></p>
     </div>
     <script>
-        // Read client_id from query parameter or from a global
         const params = new URLSearchParams(window.location.search);
-        const clientId = params.get('client_id');
+        const apiBase = params.get('api_base') || 'http://localhost:3001';
 
-        if (!clientId) {
-            document.querySelector('.auth-status').textContent =
-                'Error: client_id query parameter is missing.';
-        }
+        document.getElementById('login-form').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('btn-submit');
+            const msg = document.getElementById('msg');
 
-        window.onload = function () {
-            if (!clientId || !window.google?.accounts?.id) return;
+            btn.disabled = true;
+            btn.textContent = '⏳ Signing in…';
+            msg.textContent = '';
 
-            google.accounts.id.initialize({
-                client_id: clientId,
-                callback: function (response) {
-                    if (response.credential && window.opener) {
-                        window.opener.postMessage(
-                            { type: 'BEN_DON_AUTH', credential: response.credential },
-                            '*'
-                        );
-                    }
-                    window.close();
-                },
-            });
+            try {
+                const res = await fetch(apiBase + '/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+                const json = await res.json();
 
-            google.accounts.id.renderButton(
-                document.getElementById('g_id_signin'),
-                { theme: 'filled_blue', size: 'large', shape: 'pill', text: 'signin_with', width: 280 }
-            );
-        };
+                if (!res.ok) {
+                    throw new Error(json.error || 'Login failed');
+                }
+
+                // Send JWT to opener
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'BEN_DON_AUTH',
+                        token: json.token,
+                        name: json.user?.name || email,
+                    }, '*');
+                }
+                window.close();
+            } catch (err) {
+                msg.textContent = err.message;
+                msg.className = 'msg error';
+                btn.disabled = false;
+                btn.textContent = '🔑 Sign In';
+            }
+        });
     </script>
 </body>
 

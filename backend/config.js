@@ -1,31 +1,38 @@
 /**
- * Configuration module
- * Centralizes environment variable reading with validation.
+ * Backend configuration.
+ * Loads and validates environment variables.
  */
-require('dotenv').config();
+const path = require('path');
 
-const requiredVars = [
-  'GOOGLE_CLIENT_ID',
+// Load .env from backend directory
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+
+// Validate required variables
+const required = [
   'GOOGLE_SERVICE_ACCOUNT_KEY_PATH',
   'SPREADSHEET_ID',
   'DOC_ID',
+  'JWT_SECRET',
 ];
 
-// Validate that all required environment variables are set
-for (const varName of requiredVars) {
-  if (!process.env[varName]) {
-    console.error(`❌ Missing required environment variable: ${varName}`);
-    console.error(`   See .env.example for reference.`);
+for (const key of required) {
+  if (!process.env[key]) {
+    console.error(`❌ Missing required environment variable: ${key}`);
     process.exit(1);
   }
 }
 
 module.exports = {
-  googleClientId: process.env.GOOGLE_CLIENT_ID,
   serviceAccountKeyPath: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH,
   spreadsheetId: process.env.SPREADSHEET_ID,
   docId: process.env.DOC_ID,
   port: parseInt(process.env.PORT, 10) || 3001,
+  jwtSecret: process.env.JWT_SECRET,
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
+  allowedEmailDomains: (process.env.ALLOWED_EMAIL_DOMAINS || '')
+    .split(',')
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean),
   allowedOrigins: (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || 'http://localhost:5173')
     .split(',')
     .map((o) => o.trim())

@@ -1,22 +1,54 @@
 /**
  * API Routes
- * POST /api/topup           — Execute a cash top-up transaction
- * POST /api/spend           — Execute a spend (deduction) transaction
- * GET  /api/balance         — Look up customer balance
- * POST /api/balance/batch   — Batch balance lookup
- * POST /api/checkout/batch  — Atomic batch checkout
- * GET  /api/transactions    — Retrieve recent transactions
+ * POST /api/login            — Authenticate (public)
+ * POST /api/register         — Register new user (public)
+ * GET  /api/me               — Current user profile
+ * POST /api/topup            — Execute a cash top-up transaction
+ * POST /api/spend            — Execute a spend (deduction) transaction
+ * GET  /api/balance          — Look up customer balance
+ * POST /api/balance/batch    — Batch balance lookup
+ * POST /api/checkout/batch   — Atomic batch checkout
+ * GET  /api/transactions     — Retrieve recent transactions
  */
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../middleware/auth');
-const { checkAuthorization, registerUser, getUserInfo, WRITE_ROLES, READ_ROLES } = require('../services/authorizationService');
+const { checkAuthorization, registerUser, loginUser, getUserInfo, WRITE_ROLES, READ_ROLES } = require('../services/authorizationService');
 const { findByIdempotencyKey, appendTransaction, getTransactions } = require('../services/sheetsService');
 const { appendLog } = require('../services/docsService');
 const { computeCustomerBalance, computeBatchBalances } = require('../services/balanceService');
 const { executeBatchCheckout } = require('../services/batchCheckoutService');
 
 const router = express.Router();
+
+/**
+ * POST /api/login
+ * Authenticate with email + password. Returns a JWT.
+ * Public — no auth required.
+ *
+ * Body: { email, password }
+ */
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || typeof email !== 'string' || email.trim().length === 0) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+        if (!password || typeof password !== 'string' || password.length === 0) {
+            return res.status(400).json({ error: 'Password is required' });
+        }
+
+        const result = await loginUser(email.trim(), password);
+        return res.status(200).json(result);
+    } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
+        console.error('Login error:', error.message || error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 /**
  * GET /api/me
@@ -321,21 +353,25 @@ router.post('/checkout/batch', verifyToken, async (req, res) => {
 /**
  * POST /api/register
  * Register a new user account.
- * Requires Google Sign-In (to verify email), but no role check.
+ * Public — no auth required.
  *
- * Body: { name }
- * The email comes from the verified Google token.
+ * Body: { name, email, password }
  */
-router.post('/register', verifyToken, async (req, res) => {
+router.post('/register', async (req, res) => {
     try {
-        const { email } = req.user;
-        const { name } = req.body;
+        const { name, email, password } = req.body;
 
         if (!name || typeof name !== 'string' || name.trim().length === 0) {
             return res.status(400).json({ error: 'Name is required' });
         }
+        if (!email || typeof email !== 'string' || email.trim().length === 0) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+        if (!password || typeof password !== 'string' || password.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        }
 
-        const result = await registerUser(name, email);
+        const result = await registerUser(name, email, password);
         return res.status(201).json(result);
     } catch (error) {
         if (error.statusCode) {
