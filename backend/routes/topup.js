@@ -10,13 +10,34 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../middleware/auth');
-const { checkAuthorization, registerUser, WRITE_ROLES, READ_ROLES } = require('../services/authorizationService');
+const { checkAuthorization, registerUser, getUserInfo, WRITE_ROLES, READ_ROLES } = require('../services/authorizationService');
 const { findByIdempotencyKey, appendTransaction, getTransactions } = require('../services/sheetsService');
 const { appendLog } = require('../services/docsService');
 const { computeCustomerBalance, computeBatchBalances } = require('../services/balanceService');
 const { executeBatchCheckout } = require('../services/batchCheckoutService');
 
 const router = express.Router();
+
+/**
+ * GET /api/me
+ * Returns the current user's profile (name, email, role).
+ * Requires Google Sign-In token.
+ */
+router.get('/me', verifyToken, async (req, res) => {
+    try {
+        const info = await getUserInfo(req.user.email);
+        if (!info) {
+            return res.status(404).json({ error: 'User not found in authorized users list' });
+        }
+        if (!info.active) {
+            return res.status(403).json({ error: 'User account is deactivated' });
+        }
+        return res.status(200).json(info);
+    } catch (error) {
+        console.error('Get user info error:', error.message);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 /**
  * POST /api/topup
@@ -189,6 +210,14 @@ router.get('/balance', verifyToken, async (req, res) => {
         const customer = req.query.customer;
         if (!customer || customer.trim().length === 0) {
             return res.status(400).json({ error: 'Customer query parameter is required' });
+        }
+
+        // Buyers can only look up their own balance
+        const userProfile = await getUserInfo(email);
+        if (userProfile && userProfile.role === 'buyer') {
+            if (customer.trim().toLowerCase() !== (userProfile.name || '').toLowerCase()) {
+                return res.status(403).json({ error: 'Buyers can only look up their own balance' });
+            }
         }
 
         const balance = await computeCustomerBalance(customer.trim());

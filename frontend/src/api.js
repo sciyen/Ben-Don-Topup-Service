@@ -6,6 +6,20 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 /**
+ * GET /api/me — Get current user profile (name, email, role)
+ * @param {string} token - Google ID token
+ * @returns {Promise<{name: string, email: string, role: string, active: boolean}>}
+ */
+export async function getMe(token) {
+    const res = await fetch(`${API_BASE}/api/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || `Request failed with status ${res.status}`);
+    return json;
+}
+
+/**
  * POST /api/topup — Submit a new top-up transaction
  * @param {Object} data - { customer, amount, note, idempotencyKey }
  * @param {string} token - Google ID token

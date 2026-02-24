@@ -132,4 +132,27 @@ async function registerUser(name, email) {
     return { success: true, message: 'Registration successful' };
 }
 
-module.exports = { checkAuthorization, registerUser, WRITE_ROLES, READ_ROLES };
+/**
+ * Retrieves user info (name, role, active) for the given email.
+ * @param {string} email - The user's verified email.
+ * @returns {Promise<{name: string, email: string, role: string, active: boolean} | null>}
+ */
+async function getUserInfo(email) {
+    const rows = await getAllAuthorizedUsers();
+
+    for (let i = 1; i < rows.length; i++) {
+        const [name, rowEmail, role, active] = rows[i];
+        if (rowEmail && rowEmail.toLowerCase().trim() === email.toLowerCase().trim()) {
+            return {
+                name: (name || '').trim(),
+                email: rowEmail.trim(),
+                role: (role || '').toLowerCase().trim(),
+                active: (active || '').toLowerCase().trim() === 'true',
+            };
+        }
+    }
+
+    return null;
+}
+
+module.exports = { checkAuthorization, registerUser, getUserInfo, WRITE_ROLES, READ_ROLES };

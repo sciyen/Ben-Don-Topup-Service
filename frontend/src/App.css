@@ -38,3 +38,12 @@
   color: #c4b5fd;
   border-bottom-color: #6c63ff;
 }
+
+.app-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.9rem;
+}
