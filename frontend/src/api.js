@@ -152,3 +152,28 @@ export async function postBatchCheckout(rows, idempotencyKey, token) {
 
     return json;
 }
+
+/**
+ * POST /api/register — Register a new user account
+ * @param {string} name - User's display name
+ * @param {string} token - Google ID token (used to verify email)
+ * @returns {Promise<Object>} Response data
+ */
+export async function postRegister(name, token) {
+    const res = await fetch(`${API_BASE}/api/register`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name }),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+        throw new Error(json.error || `Request failed with status ${res.status}`);
+    }
+
+    return json;
+}

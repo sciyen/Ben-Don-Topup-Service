@@ -10,7 +10,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../middleware/auth');
-const { checkAuthorization, WRITE_ROLES, READ_ROLES } = require('../services/authorizationService');
+const { checkAuthorization, registerUser, WRITE_ROLES, READ_ROLES } = require('../services/authorizationService');
 const { findByIdempotencyKey, appendTransaction, getTransactions } = require('../services/sheetsService');
 const { appendLog } = require('../services/docsService');
 const { computeCustomerBalance, computeBatchBalances } = require('../services/balanceService');
@@ -285,6 +285,34 @@ router.post('/checkout/batch', verifyToken, async (req, res) => {
             return res.status(error.statusCode).json({ error: error.message });
         }
         console.error('Batch checkout error:', error.message || error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/register
+ * Register a new user account.
+ * Requires Google Sign-In (to verify email), but no role check.
+ *
+ * Body: { name }
+ * The email comes from the verified Google token.
+ */
+router.post('/register', verifyToken, async (req, res) => {
+    try {
+        const { email } = req.user;
+        const { name } = req.body;
+
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
+            return res.status(400).json({ error: 'Name is required' });
+        }
+
+        const result = await registerUser(name, email);
+        return res.status(201).json(result);
+    } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
+        console.error('Registration error:', error.message || error);
         return res.status(500).json({ error: 'Internal server error' });
     }
 });
