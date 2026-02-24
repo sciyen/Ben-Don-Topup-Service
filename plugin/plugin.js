@@ -198,6 +198,24 @@
             .bendon-row-done { background: #dcfce7; color: #166534; }
             .bendon-row-fail { background: #fee2e2; color: #991b1b; }
             .bendon-row-msg { font-size: 10px; max-width: 120px; word-break: break-word; }
+
+            /* Full-screen loader overlay */
+            .bendon-loader-overlay {
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                z-index: 999999; display: flex; flex-direction: column;
+                justify-content: center; align-items: center;
+                background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(2px);
+            }
+            .bendon-loader-spinner {
+                width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.2);
+                border-top-color: #6c63ff; border-radius: 50%;
+                animation: bendon-spin 0.7s linear infinite;
+            }
+            .bendon-loader-text {
+                margin-top: 12px; color: #fff; font-size: 13px;
+                font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 600;
+            }
+            @keyframes bendon-spin { to { transform: rotate(360deg); } }
         `;
         document.head.appendChild(style);
     }
@@ -211,6 +229,23 @@
     let logoutBtn = null;
     let refreshBtn = null;
     let checkoutAllBtn = null;
+    let loaderOverlay = null;
+
+    function showLoader(message) {
+        if (loaderOverlay) return;
+        loaderOverlay = document.createElement('div');
+        loaderOverlay.className = 'bendon-loader-overlay';
+        loaderOverlay.innerHTML = '<div class="bendon-loader-spinner"></div>'
+            + '<div class="bendon-loader-text">' + (message || 'Loading…') + '</div>';
+        document.body.appendChild(loaderOverlay);
+    }
+
+    function hideLoader() {
+        if (loaderOverlay) {
+            loaderOverlay.remove();
+            loaderOverlay = null;
+        }
+    }
 
     function createPanel() {
         panelEl = document.createElement('div');
@@ -425,6 +460,7 @@
     async function refreshAllBalances() {
         if (!authToken) return;
 
+        showLoader('Fetching balances…');
         showPanelMsg('Fetching balances…', 'success');
         refreshBtn.disabled = true;
 
@@ -452,6 +488,7 @@
             showPanelMsg(err.message, 'error');
         } finally {
             refreshBtn.disabled = false;
+            hideLoader();
         }
     }
 
@@ -464,6 +501,7 @@
         btn.disabled = true;
         btn.textContent = '⏳…';
         msgSpan.textContent = '';
+        showLoader('Processing checkout…');
 
         try {
             await execSpend(data.customer, data.amount, data.note);
@@ -494,6 +532,8 @@
                     btn.disabled = false;
                 }
             }, 2000);
+        } finally {
+            hideLoader();
         }
     }
 
@@ -502,6 +542,7 @@
 
         checkoutAllBtn.disabled = true;
         checkoutAllBtn.textContent = '⏳ Processing…';
+        showLoader('Batch checkout in progress…');
 
         try {
             const tableRows = getDataRows();
@@ -585,6 +626,7 @@
         } finally {
             checkoutAllBtn.disabled = false;
             checkoutAllBtn.textContent = '⚡ Checkout All';
+            hideLoader();
         }
     }
 
