@@ -12,8 +12,8 @@
 
     // ─── Configuration ─────────────────────────────────────
     const CONFIG = {
-        API_BASE: 'http://localhost:3001',           // Backend API URL
-        AUTH_PAGE: 'http://localhost:5173/auth.html', // Auth popup URL (on our domain)
+        API_BASE: 'https://localhost',             // Backend API via Caddy (no port)
+        AUTH_PAGE: 'https://localhost/auth.html',   // Auth popup via Caddy (no port)
     };
 
     // ─── Guard: prevent double injection ─────────────────
