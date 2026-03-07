@@ -198,3 +198,47 @@ export async function postBatchCheckout(rows, idempotencyKey, token) {
 
     return json;
 }
+
+/**
+ * POST /api/staged — Set staged (pre-authorized) amount
+ * @param {number} amount - Amount to stage (0 to clear)
+ * @param {string} token - JWT token
+ * @returns {Promise<{customer: string, stagedAmount: number, balance: number}>}
+ */
+export async function postStaged(amount, token) {
+    const res = await fetch(`${API_BASE}/api/staged`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ amount }),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+        throw new Error(json.error || `Request failed with status ${res.status}`);
+    }
+
+    return json;
+}
+
+/**
+ * GET /api/staged — Get current staged amount
+ * @param {string} token - JWT token
+ * @returns {Promise<{customer: string, stagedAmount: number}>}
+ */
+export async function getStaged(token) {
+    const res = await fetch(`${API_BASE}/api/staged`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+        throw new Error(json.error || `Request failed with status ${res.status}`);
+    }
+
+    return json;
+}

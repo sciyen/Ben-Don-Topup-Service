@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getBalance, getTransactions } from '../api';
+import { getBalance, getTransactions, postStaged, getStaged } from '../api';
 import './MyAccount.css';
 
 /**
- * MyAccount page — read-only view for buyers.
- * Shows balance lookup (by their own name) and transaction history.
+ * MyAccount page — view for buyers (and other roles).
+ * Shows balance lookup, staged money controls, and transaction history.
  */
 function MyAccount({ user, userInfo, onLogout }) {
     const [transactions, setTransactions] = useState([]);
@@ -13,6 +13,12 @@ function MyAccount({ user, userInfo, onLogout }) {
     const [balanceLoading, setBalanceLoading] = useState(false);
     const [searchName, setSearchName] = useState(userInfo?.name || '');
     const [message, setMessage] = useState(null);
+
+    // Staged money state
+    const [stagedAmount, setStagedAmount] = useState(0);
+    const [stageInput, setStageInput] = useState('');
+    const [stageLoading, setStageLoading] = useState(false);
+    const [stageMessage, setStageMessage] = useState(null);
 
     // Fetch recent transactions
     const fetchTransactions = useCallback(async () => {
@@ -35,6 +41,7 @@ function MyAccount({ user, userInfo, onLogout }) {
     useEffect(() => {
         if (userInfo?.name) {
             lookupBalance(userInfo.name);
+            fetchStagedAmount();
         }
     }, [userInfo?.name, user.token]);
 
@@ -51,6 +58,54 @@ function MyAccount({ user, userInfo, onLogout }) {
             setBalance(null);
         } finally {
             setBalanceLoading(false);
+        }
+    }
+
+    async function fetchStagedAmount() {
+        try {
+            const result = await getStaged(user.token);
+            setStagedAmount(result.stagedAmount || 0);
+        } catch (err) {
+            // Silently fail — staged amount defaults to 0
+            console.error('Failed to fetch staged amount:', err.message);
+        }
+    }
+
+    async function handleStage(e) {
+        e.preventDefault();
+        const amount = parseFloat(stageInput);
+        if (isNaN(amount) || amount < 0) {
+            setStageMessage({ type: 'error', text: 'Enter a valid amount (≥ 0)' });
+            return;
+        }
+
+        setStageLoading(true);
+        setStageMessage(null);
+        try {
+            const result = await postStaged(amount, user.token);
+            setStagedAmount(result.stagedAmount);
+            setBalance(result.balance);
+            setStageInput('');
+            setStageMessage({ type: 'success', text: `Staged $${new Intl.NumberFormat('en-US').format(result.stagedAmount)}` });
+        } catch (err) {
+            setStageMessage({ type: 'error', text: err.message });
+        } finally {
+            setStageLoading(false);
+        }
+    }
+
+    async function handleClearStaged() {
+        setStageLoading(true);
+        setStageMessage(null);
+        try {
+            const result = await postStaged(0, user.token);
+            setStagedAmount(result.stagedAmount);
+            setStageInput('');
+            setStageMessage({ type: 'success', text: 'Staged amount cleared' });
+        } catch (err) {
+            setStageMessage({ type: 'error', text: err.message });
+        } finally {
+            setStageLoading(false);
         }
     }
 
@@ -109,6 +164,57 @@ function MyAccount({ user, userInfo, onLogout }) {
                 )}
                 {message && (
                     <p className={`balance-msg ${message.type}`}>{message.text}</p>
+                )}
+            </div>
+
+            {/* Stage Money Card */}
+            <div className="myaccount-stage-card">
+                <div className="stage-header">
+                    <div className="stage-label">Staged Money</div>
+                    <div className="stage-hint">Release funds for cashier checkout</div>
+                </div>
+                <div className="stage-current">
+                    <span className="stage-current-label">Currently Staged:</span>
+                    <span className={`stage-current-amount ${stagedAmount > 0 ? 'active' : ''}`}>
+                        ${new Intl.NumberFormat('en-US').format(stagedAmount)}
+                    </span>
+                </div>
+                <form className="stage-form" onSubmit={handleStage}>
+                    <div className="stage-input-wrap">
+                        <span className="stage-input-prefix">$</span>
+                        <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={stageInput}
+                            onChange={(e) => setStageInput(e.target.value)}
+                            placeholder="Amount to stage"
+                            className="stage-input"
+                            disabled={stageLoading}
+                        />
+                    </div>
+                    <div className="stage-btns">
+                        <button
+                            type="submit"
+                            className="btn-stage"
+                            disabled={stageLoading || !stageInput}
+                        >
+                            {stageLoading ? '⏳' : '📌 Stage'}
+                        </button>
+                        {stagedAmount > 0 && (
+                            <button
+                                type="button"
+                                className="btn-unstage"
+                                onClick={handleClearStaged}
+                                disabled={stageLoading}
+                            >
+                                Clear Staged
+                            </button>
+                        )}
+                    </div>
+                </form>
+                {stageMessage && (
+                    <p className={`stage-msg ${stageMessage.type}`}>{stageMessage.text}</p>
                 )}
             </div>
 

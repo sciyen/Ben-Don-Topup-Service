@@ -30,6 +30,7 @@
     let authToken = null;   // JWT (in-memory only)
     let userName = null;
     let balances = {};      // { customerName: balance | null }
+    let stagedAmounts = {}; // { customerName: stagedAmount }
     const checkedOutCustomers = new Set(); // track successful checkouts across DOM rebuilds
 
     // ─── Utils ───────────────────────────────────────────
@@ -84,6 +85,13 @@
 
     async function fetchBatchBalances(customers) {
         return apiFetch('/api/balance/batch', {
+            method: 'POST',
+            body: JSON.stringify({ customers }),
+        });
+    }
+
+    async function fetchBatchStaged(customers) {
+        return apiFetch('/api/staged/batch', {
             method: 'POST',
             body: JSON.stringify({ customers }),
         });
@@ -513,6 +521,7 @@
             const customer = td.dataset.customer;
             const amount = parseFloat(td.dataset.amount) || 0;
             const bal = balances[customer];
+            const staged = stagedAmounts[customer] || 0;
             const balSpan = td.querySelector('.bendon-balance');
             const btn = td.querySelector('.bendon-row-btn');
             const msgSpan = td.querySelector('.bendon-row-msg');
@@ -533,7 +542,12 @@
                 return;
             }
 
-            balSpan.textContent = `Balance: $${fmt(bal)}`;
+            // Show balance and staged amount
+            if (staged > 0) {
+                balSpan.textContent = `Bal: $${fmt(bal)} | Staged: $${fmt(staged)}`;
+            } else {
+                balSpan.textContent = `Balance: $${fmt(bal)}`;
+            }
 
             // Skip if already checked out
             if (btn.classList.contains('bendon-row-done')) return;
@@ -543,12 +557,20 @@
                 const fullData = parseRow(tr);
                 checkedOutCustomers.add(customer);
                 markRowDone(tr, fullData, btn, balSpan, msgSpan);
-            } else if (bal >= amount) {
+            } else if (bal >= amount && staged >= amount) {
+                // Both balance and staged are sufficient — enable checkout
                 balSpan.className = 'bendon-balance bendon-balance-ok';
                 btn.disabled = false;
                 btn.className = 'bendon-row-btn bendon-row-checkout';
                 btn.textContent = `Checkout $${fmt(amount)}`;
+            } else if (bal >= amount && staged < amount) {
+                // Balance sufficient but not staged enough
+                balSpan.className = 'bendon-balance';
+                btn.disabled = true;
+                btn.className = 'bendon-row-btn bendon-row-fail';
+                btn.textContent = 'Not Staged';
             } else {
+                // Insufficient balance
                 balSpan.className = 'bendon-balance bendon-balance-low';
                 btn.disabled = true;
                 btn.className = 'bendon-row-btn bendon-row-fail';
@@ -589,6 +611,7 @@
             lastTableRef = getTable(); // track for re-injection detection
 
             balances = await fetchBatchBalances(customers);
+            stagedAmounts = await fetchBatchStaged(customers);
             updateRowBalances();
 
             showPanelMsg(`✓ ${customers.length} balances loaded`, 'success');
@@ -617,10 +640,13 @@
             checkedOutCustomers.add(data.customer);
             markRowDone(tr, data, btn, balSpan, msgSpan);
 
-            // Update local balance
+            // Update local balance and staged amount
             if (balances[data.customer] !== undefined) {
                 balances[data.customer] -= data.amount;
                 balSpan.textContent = `Balance: $${fmt(balances[data.customer])}`;
+            }
+            if (stagedAmounts[data.customer] !== undefined) {
+                stagedAmounts[data.customer] = Math.max(0, (stagedAmounts[data.customer] || 0) - data.amount);
             }
 
             // Sync dinbendon's UI — click their "付清 »" link
@@ -902,7 +928,7 @@
                     }
                     if (msgSpan) msgSpan.textContent = '';
 
-                    // Update local balance
+                    // Update local balance and staged amount
                     const data = parseRow(tr);
                     checkedOutCustomers.add(data.customer);
                     if (balances[data.customer] !== undefined) {
@@ -910,6 +936,9 @@
                         if (balSpan) {
                             balSpan.textContent = `Balance: $${fmt(balances[data.customer])}`;
                         }
+                    }
+                    if (stagedAmounts[data.customer] !== undefined) {
+                        stagedAmounts[data.customer] = Math.max(0, (stagedAmounts[data.customer] || 0) - data.amount);
                     }
 
                     // Sync dinbendon's UI — click their "付清 »" link

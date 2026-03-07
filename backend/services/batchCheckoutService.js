@@ -12,6 +12,8 @@ const { v4: uuidv4 } = require('uuid');
 const { getAllTransactions, findByIdempotencyKey, appendTransaction } = require('./sheetsService');
 const { computeBatchBalances } = require('./balanceService');
 const { appendLog, appendBatchHeader } = require('./docsService');
+const { getStagedAmount, deductStaged, getStagedBatch } = require('./stagedService');
+const { SHARED_DEPOSIT_CUSTOMER } = require('./authorizationService');
 
 /**
  * Validates and executes a batch checkout, processing only valid rows.
@@ -45,6 +47,8 @@ async function executeBatchCheckout(rows, idempotencyKey, cashierEmail) {
     // 5. Simulate deductions and partition rows into valid/skipped
     //    Handles duplicate customers within the same batch cumulatively.
     const simulatedBalances = { ...currentBalances };
+    const stagedAmounts = getStagedBatch(uniqueCustomers);
+    const simulatedStaged = { ...stagedAmounts };
     const validRows = [];
     const skippedRows = [];
 
@@ -70,6 +74,17 @@ async function executeBatchCheckout(rows, idempotencyKey, cashierEmail) {
         if (currentBal < amount) {
             skippedRows.push({ index: i + 1, customer, reason: `Insufficient balance: ${currentBal} < ${amount}` });
             continue;
+        }
+
+        // Skip: insufficient staged amount (Shared Deposit is exempt)
+        const isSharedDeposit = customer.toLowerCase() === SHARED_DEPOSIT_CUSTOMER.toLowerCase();
+        if (!isSharedDeposit) {
+            const currentStaged = simulatedStaged[customer] || 0;
+            if (currentStaged < amount) {
+                skippedRows.push({ index: i + 1, customer, reason: `Insufficient staged amount: ${currentStaged} < ${amount}` });
+                continue;
+            }
+            simulatedStaged[customer] = currentStaged - amount;
         }
 
         // Valid — deduct in simulation for cumulative check
@@ -116,6 +131,8 @@ async function executeBatchCheckout(rows, idempotencyKey, cashierEmail) {
         try {
             await appendTransaction(transactionData);
             await appendLog(transactionData);
+            // Deduct from staged amount
+            deductStaged(row.customer.trim(), row.amount);
         } catch (error) {
             console.error(`Batch checkout failed at valid row ${i + 1}:`, error.message);
             throw {

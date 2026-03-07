@@ -18,6 +18,7 @@ const { findByIdempotencyKey, appendTransaction, getTransactions } = require('..
 const { appendLog } = require('../services/docsService');
 const { computeCustomerBalance, computeBatchBalances } = require('../services/balanceService');
 const { executeBatchCheckout } = require('../services/batchCheckoutService');
+const { getStagedAmount, setStaged, deductStaged, getStagedBatch } = require('../services/stagedService');
 
 const router = express.Router();
 
@@ -218,6 +219,19 @@ router.post('/spend', verifyToken, async (req, res) => {
             });
         }
 
+        // 4b. Staged-amount check: buyer must have staged enough
+        //     (Shared Deposit is exempt — it's a cashier-managed virtual account for cash payments)
+        if (customer.trim().toLowerCase() !== SHARED_DEPOSIT_CUSTOMER.toLowerCase()) {
+            const stagedAmount = getStagedAmount(customer.trim());
+            if (stagedAmount < amount) {
+                return res.status(409).json({
+                    error: 'Insufficient staged amount',
+                    stagedAmount,
+                    requestedAmount: amount,
+                });
+            }
+        }
+
         // 5. Generate server-side values
         const timestamp = new Date().toISOString();
         const transactionId = uuidv4();
@@ -239,6 +253,9 @@ router.post('/spend', verifyToken, async (req, res) => {
 
         // 7. Append to Google Doc
         await appendLog(transactionData);
+
+        // 7b. Deduct from staged amount
+        deductStaged(customer.trim(), amount);
 
         // 8. Return success
         console.log(`✅ SPEND ${transactionId} | ${customer.trim()} -${amount} by ${email}`);
@@ -375,6 +392,149 @@ router.post('/checkout/batch', verifyToken, async (req, res) => {
             return res.status(error.statusCode).json({ error: error.message });
         }
         console.error('Batch checkout error:', error.message || error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/staged
+ * Set the staged (pre-authorized) amount for a buyer.
+ * Buyers can only stage for themselves. Cashiers/admins can stage for any customer.
+ *
+ * Body: { amount, customer? }
+ *   - amount: the total amount to stage (replaces previous value, 0 to clear)
+ *   - customer: optional, only cashier/admin can specify a different customer
+ */
+router.post('/staged', verifyToken, async (req, res) => {
+    try {
+        const { email } = req.user;
+
+        // All authenticated users can stage
+        const authResult = await checkAuthorization(email, READ_ROLES);
+        if (!authResult.authorized) {
+            return res.status(403).json({ error: `Forbidden: ${authResult.reason}` });
+        }
+
+        const { amount, customer: requestedCustomer } = req.body;
+
+        if (amount === undefined || amount === null || typeof amount !== 'number' || amount < 0) {
+            return res.status(400).json({ error: 'Amount must be a non-negative number' });
+        }
+
+        // Determine the target customer
+        const userProfile = await getUserInfo(email);
+        let targetCustomer;
+
+        if (requestedCustomer && requestedCustomer.trim()) {
+            // Only cashier/admin can stage for others
+            if (userProfile && !WRITE_ROLES.includes(userProfile.role)) {
+                // Buyer — must match their own name
+                if (requestedCustomer.trim().toLowerCase() !== (userProfile.name || '').toLowerCase()) {
+                    return res.status(403).json({ error: 'Buyers can only stage for themselves' });
+                }
+            }
+            targetCustomer = requestedCustomer.trim();
+        } else {
+            // Default to the user's own name
+            if (!userProfile || !userProfile.name) {
+                return res.status(400).json({ error: 'Could not determine customer name. Please specify a customer.' });
+            }
+            targetCustomer = userProfile.name;
+        }
+
+        // Validate that amount does not exceed current balance
+        if (amount > 0) {
+            const currentBalance = await computeCustomerBalance(targetCustomer);
+            if (amount > currentBalance) {
+                return res.status(409).json({
+                    error: 'Cannot stage more than current balance',
+                    currentBalance,
+                    requestedAmount: amount,
+                });
+            }
+        }
+
+        setStaged(targetCustomer, amount);
+
+        console.log(`📌 STAGED | ${targetCustomer} staged $${amount} by ${email}`);
+        return res.status(200).json({
+            customer: targetCustomer,
+            stagedAmount: getStagedAmount(targetCustomer),
+            balance: await computeCustomerBalance(targetCustomer),
+        });
+    } catch (error) {
+        console.error('Stage error:', error.message);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/staged
+ * Get the current staged amount for the authenticated user (or a specified customer).
+ * Query: ?customer=xxx (optional, defaults to own name)
+ */
+router.get('/staged', verifyToken, async (req, res) => {
+    try {
+        const { email } = req.user;
+
+        const authResult = await checkAuthorization(email, READ_ROLES);
+        if (!authResult.authorized) {
+            return res.status(403).json({ error: `Forbidden: ${authResult.reason}` });
+        }
+
+        const userProfile = await getUserInfo(email);
+        let targetCustomer;
+
+        if (req.query.customer && req.query.customer.trim()) {
+            // Buyers can only query their own staged amount
+            if (userProfile && userProfile.role === 'buyer') {
+                if (req.query.customer.trim().toLowerCase() !== (userProfile.name || '').toLowerCase()) {
+                    return res.status(403).json({ error: 'Buyers can only view their own staged amount' });
+                }
+            }
+            targetCustomer = req.query.customer.trim();
+        } else {
+            if (!userProfile || !userProfile.name) {
+                return res.status(400).json({ error: 'Could not determine customer name' });
+            }
+            targetCustomer = userProfile.name;
+        }
+
+        return res.status(200).json({
+            customer: targetCustomer,
+            stagedAmount: getStagedAmount(targetCustomer),
+        });
+    } catch (error) {
+        console.error('Get staged error:', error.message);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/staged/batch
+ * Get staged amounts for multiple customers.
+ * Authentication required. Cashier/admin only.
+ *
+ * Body: { customers: string[] }
+ */
+router.post('/staged/batch', verifyToken, async (req, res) => {
+    try {
+        const { email } = req.user;
+
+        const authResult = await checkAuthorization(email, WRITE_ROLES);
+        if (!authResult.authorized) {
+            return res.status(403).json({ error: `Forbidden: ${authResult.reason}` });
+        }
+
+        const { customers } = req.body;
+        if (!customers || !Array.isArray(customers) || customers.length === 0) {
+            return res.status(400).json({ error: 'customers array is required' });
+        }
+
+        const staged = getStagedBatch(customers);
+        return res.status(200).json(staged);
+    } catch (error) {
+        console.error('Batch staged error:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
     }
 });

@@ -154,6 +154,170 @@
     color: #86efac;
 }
 
+/* Stage Money Card */
+.myaccount-stage-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    backdrop-filter: blur(12px);
+}
+
+.stage-header {
+    margin-bottom: 1rem;
+}
+
+.stage-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 0.25rem;
+}
+
+.stage-hint {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.stage-current {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.stage-current-label {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.stage-current-amount {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.3);
+    font-variant-numeric: tabular-nums;
+}
+
+.stage-current-amount.active {
+    color: #fbbf24;
+}
+
+.stage-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.stage-input-wrap {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 0 0.8rem;
+    transition: border-color 0.2s ease;
+}
+
+.stage-input-wrap:focus-within {
+    border-color: #fbbf24;
+}
+
+.stage-input-prefix {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-right: 0.25rem;
+}
+
+.stage-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    padding: 0.6rem 0;
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.stage-input::-webkit-outer-spin-button,
+.stage-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.stage-btns {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-stage {
+    flex: 1;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.btn-stage:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3);
+}
+
+.btn-stage:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-unstage {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.btn-unstage:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.btn-unstage:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.stage-msg {
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+.stage-msg.error {
+    color: #fca5a5;
+}
+
+.stage-msg.success {
+    color: #86efac;
+}
+
 /* History */
 .myaccount-history {
     background: rgba(255, 255, 255, 0.03);
