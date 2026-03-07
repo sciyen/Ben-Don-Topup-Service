@@ -947,7 +947,7 @@
             }
 
             // Case 2: Table still exists but our injected cells are gone
-            if (currentTable && !currentTable.querySelector('.bendon-header')) {
+            if (currentTable && !currentTable.querySelector('.bendon-th')) {
                 scheduleReinject('injected cells missing');
                 return;
             }
