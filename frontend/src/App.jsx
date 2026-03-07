@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getMe } from './api';
 import Login from './pages/Login';
+import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import AutoCheckout from './pages/AutoCheckout';
 import MyAccount from './pages/MyAccount';
@@ -19,7 +20,7 @@ import './App.css';
 function App() {
   const [user, setUser] = useState(null);       // { email, name, role, token }
   const [userInfo, setUserInfo] = useState(null); // { name, email, role, active }
-  const [page, setPage] = useState(null);
+  const [page, setPage] = useState('home');
   const [roleLoading, setRoleLoading] = useState(false);
 
   /**
@@ -49,9 +50,9 @@ function App() {
           setUserInfo(info);
           const role = (info.role || '').toLowerCase();
           if (role === 'buyer' || role === 'viewer') {
-            setPage('account');
+            setPage('home');
           } else {
-            setPage('dashboard');
+            setPage('home');
           }
         }
       } catch (err) {
@@ -72,16 +73,32 @@ function App() {
   const handleLogout = useCallback(() => {
     setUser(null);
     setUserInfo(null);
-    setPage(null);
+    setPage('home');
   }, []);
 
   const role = (userInfo?.role || '').toLowerCase();
   const canWrite = role === 'cashier' || role === 'admin';
 
   if (!user) {
+    const currentPage = page === 'login' ? 'login' : 'home';
     return (
       <div className="app">
-        <Login onLogin={handleLogin} />
+        <nav className="app-nav">
+          <button
+            className={`nav-tab ${currentPage === 'home' ? 'nav-active' : ''}`}
+            onClick={() => setPage('home')}
+          >
+            🏠 Home
+          </button>
+          <button
+            className={`nav-tab ${currentPage === 'login' ? 'nav-active' : ''}`}
+            onClick={() => setPage('login')}
+          >
+            🔑 Login
+          </button>
+        </nav>
+        {currentPage === 'home' && <Home />}
+        {currentPage === 'login' && <Login onLogin={handleLogin} />}
       </div>
     );
   }
@@ -97,6 +114,12 @@ function App() {
   return (
     <div className="app">
       <nav className="app-nav">
+        <button
+          className={`nav-tab ${page === 'home' ? 'nav-active' : ''}`}
+          onClick={() => setPage('home')}
+        >
+          🏠 Home
+        </button>
         {canWrite && (
           <>
             <button
@@ -127,6 +150,9 @@ function App() {
         </button>
       </nav>
 
+      {page === 'home' && (
+        <Home />
+      )}
       {page === 'dashboard' && canWrite && (
         <Dashboard user={user} onLogout={handleLogout} />
       )}

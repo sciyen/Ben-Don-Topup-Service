@@ -1,0 +1,464 @@
+/* ==========================================
+   Home Page Styles
+   Workflow introduction and diagrams
+   ========================================== */
+
+.home-page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+    color: #fff;
+}
+
+/* Hero */
+.home-hero {
+    text-align: center;
+    padding: 2.5rem 0 2rem;
+}
+
+.home-title {
+    font-size: 2rem;
+    font-weight: 800;
+    margin: 0 0 0.75rem;
+    letter-spacing: -0.02em;
+}
+
+.home-emoji {
+    font-size: 1.8rem;
+}
+
+.home-subtitle {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.95rem;
+    line-height: 1.65;
+    max-width: 540px;
+    margin: 0 auto;
+}
+
+.home-subtitle strong {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* Sections */
+.home-section {
+    margin-bottom: 2.5rem;
+}
+
+.section-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0 0 0.75rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.section-desc {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    margin: 0 0 1rem;
+}
+
+.section-desc strong {
+    color: #fbbf24;
+}
+
+.section-desc em {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Role Cards */
+.role-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.role-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 1.25rem;
+    text-align: center;
+    transition: border-color 0.2s ease;
+}
+
+.role-card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.role-icon {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.role-card h3 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin: 0 0 0.35rem;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.role-card p {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.4);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.role-card em {
+    color: #fbbf24;
+    font-style: normal;
+    font-weight: 600;
+}
+
+/* Flow Diagrams */
+.flow-diagram {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.flow-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.3);
+    margin-bottom: 1.25rem;
+}
+
+/* Horizontal flow (overview) */
+.flow-steps {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+
+.flow-step {
+    flex: 1;
+    min-width: 130px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+}
+
+.flow-step.step-done {
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.2);
+}
+
+.step-num {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    background: rgba(108, 99, 255, 0.2);
+    color: #a5b4fc;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.step-done .step-num {
+    background: rgba(34, 197, 94, 0.2);
+    color: #86efac;
+}
+
+.step-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.step-content strong {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.step-content span {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.35);
+    line-height: 1.4;
+}
+
+.flow-arrow {
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.15);
+    font-size: 1.1rem;
+    font-weight: 300;
+}
+
+/* Vertical flow diagrams */
+.flow-vertical {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.flow-v-step {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.flow-v-step.highlight-step {
+    background: rgba(251, 191, 36, 0.06);
+    border-color: rgba(251, 191, 36, 0.15);
+}
+
+.fv-icon {
+    flex-shrink: 0;
+    font-size: 1.3rem;
+    margin-top: 0.1rem;
+}
+
+.fv-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.fv-text strong {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.fv-text span {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.4);
+    line-height: 1.5;
+}
+
+.fv-text em {
+    color: rgba(255, 255, 255, 0.7);
+    font-style: normal;
+    font-weight: 600;
+}
+
+.flow-v-arrow {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.12);
+    font-size: 1rem;
+    padding: 0.15rem 0;
+}
+
+/* Flow color variants */
+.flow-green {
+    border-color: rgba(34, 197, 94, 0.15);
+}
+
+.flow-green .flow-title {
+    color: rgba(134, 239, 172, 0.5);
+}
+
+.flow-amber {
+    border-color: rgba(251, 191, 36, 0.15);
+}
+
+.flow-amber .flow-title {
+    color: rgba(251, 191, 36, 0.5);
+}
+
+.flow-purple {
+    border-color: rgba(108, 99, 255, 0.15);
+}
+
+.flow-purple .flow-title {
+    color: rgba(165, 180, 252, 0.5);
+}
+
+.flow-red {
+    border-color: rgba(239, 68, 68, 0.12);
+}
+
+.flow-red .flow-title {
+    color: rgba(252, 165, 165, 0.5);
+}
+
+/* Info Box */
+.info-box {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    padding: 0.75rem 1rem;
+    background: rgba(251, 191, 36, 0.04);
+    border: 1px solid rgba(251, 191, 36, 0.12);
+    border-radius: 10px;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.55;
+}
+
+.info-box strong {
+    color: #fbbf24;
+}
+
+.info-icon {
+    flex-shrink: 0;
+    font-size: 1rem;
+}
+
+/* Refund Grid */
+.refund-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.refund-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 1.25rem;
+}
+
+.refund-card h4 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.refund-card p {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.4);
+    margin: 0 0 0.5rem;
+    line-height: 1.5;
+}
+
+.refund-card ol {
+    margin: 0;
+    padding-left: 1.2rem;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.45);
+    line-height: 1.7;
+}
+
+.refund-card strong {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.refund-card em {
+    color: rgba(255, 255, 255, 0.6);
+    font-style: normal;
+}
+
+/* Reference Table */
+.ref-table-wrap {
+    overflow-x: auto;
+}
+
+.ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.ref-table th {
+    text-align: left;
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ref-table td {
+    padding: 0.7rem 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.55);
+    vertical-align: middle;
+}
+
+.ref-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.ref-green {
+    background: rgba(34, 197, 94, 0.15);
+    color: #86efac;
+}
+
+.ref-gray {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.ref-red {
+    background: rgba(239, 68, 68, 0.12);
+    color: #fca5a5;
+}
+
+.ref-amber {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.ref-done {
+    background: rgba(34, 197, 94, 0.1);
+    color: #166534;
+    background: #dcfce7;
+}
+
+/* Status colors for inline text */
+.status-green {
+    color: #86efac;
+    font-weight: 600;
+    font-style: normal;
+}
+
+.status-gray {
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 600;
+    font-style: normal;
+}
+
+.status-amber {
+    color: #fbbf24;
+    font-weight: 600;
+    font-style: normal;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .role-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .flow-steps {
+        flex-direction: column;
+    }
+
+    .flow-arrow {
+        transform: rotate(90deg);
+    }
+
+    .flow-step {
+        min-width: 0;
+    }
+
+    .refund-grid {
+        grid-template-columns: 1fr;
+    }
+}
