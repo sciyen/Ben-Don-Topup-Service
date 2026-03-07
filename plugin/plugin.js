@@ -12,8 +12,10 @@
 
     // ─── Configuration ─────────────────────────────────────
     const CONFIG = {
-        API_BASE: 'https://localhost',             // Backend API via Caddy (no port)
-        AUTH_PAGE: 'https://localhost/auth.html',   // Auth popup via Caddy (no port)
+        // API_BASE: 'https://10.61.221.28',             // Backend API via Caddy (no port)
+        // AUTH_PAGE: 'https://10.61.221.28/auth.html',   // Auth popup via Caddy (no port)
+        API_BASE: 'http://localhost:3001',             // Backend API via Caddy (no port)
+        AUTH_PAGE: 'http://localhost:5173/auth.html',   // Auth popup via Caddy (no port)
     };
 
     // ─── Guard: prevent double injection ─────────────────
@@ -27,7 +29,7 @@
     // ─── State ───────────────────────────────────────────
     let authToken = null;   // JWT (in-memory only)
     let userName = null;
-    let balances = {};      // { customerName: balance }
+    let balances = {};      // { customerName: balance | null }
     const checkedOutCustomers = new Set(); // track successful checkouts across DOM rebuilds
 
     // ─── Utils ───────────────────────────────────────────
@@ -276,6 +278,27 @@
             .bendon-dialog-msg {
                 margin-top: 10px; font-size: 12px; min-height: 16px;
             }
+
+            /* Done + Cancel wrapper */
+            .bendon-done-wrap {
+                display: flex; gap: 4px; align-items: center; justify-content: center;
+            }
+            .bendon-row-cancel {
+                border: none; border-radius: 6px; padding: 4px 6px; cursor: pointer;
+                font-size: 10px; font-weight: 700; font-family: inherit;
+                background: rgba(239, 68, 68, 0.15); color: #fca5a5;
+                transition: all 0.15s ease; line-height: 1;
+            }
+            .bendon-row-cancel:hover:not(:disabled) {
+                background: rgba(239, 68, 68, 0.3); color: #fff;
+            }
+            .bendon-row-cancel:disabled { opacity: 0.4; cursor: not-allowed; }
+
+            /* Cash refund notification dialog */
+            .bendon-refund-icon { font-size: 32px; margin-bottom: 8px; }
+            .bendon-refund-text {
+                font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 6px;
+            }
         `;
         document.head.appendChild(style);
     }
@@ -381,8 +404,12 @@
         const cells = tr.querySelectorAll('td');
         const customer = (tr.querySelector('td.mergeKey .infoContent')?.textContent || '').trim();
         // Use column 3 (還剩, total) as the amount
-        const totalCell = cells[3];
-        const amount = parseFloat((totalCell?.querySelector('.infoContent')?.textContent || '').trim()) || 0;
+        const amountCell = cells[3];
+        const amount = parseFloat((amountCell?.querySelector('.infoContent')?.textContent || '').trim()) || 0;
+
+        // Use column 3 (還剩, total) as the amount
+        const totalCell = cells[4];
+        const total = parseFloat((totalCell?.querySelector('.infoContent')?.textContent || '').trim()) || 0;
 
         // Items from td.cell elements
         const items = Array.from(tr.querySelectorAll('td.cell .cellContent'))
@@ -390,7 +417,7 @@
             .filter(Boolean)
             .join(', ');
 
-        return { customer, amount, note: items };
+        return { customer, amount, total, note: items };
     }
 
     /**
@@ -445,6 +472,7 @@
                 btn.className = 'bendon-row-btn bendon-row-done';
                 btn.textContent = '✓ Done';
                 btn.disabled = true;
+                // Cancel button will be added after msgSpan is created
             } else {
                 btn.className = 'bendon-row-btn bendon-row-checkout';
                 btn.textContent = `Checkout $${fmt(data.amount)}`;
@@ -468,6 +496,11 @@
             wrap.appendChild(msgSpan);
             td.appendChild(wrap);
             tr.appendChild(td);
+
+            // Add cancel button if already checked out
+            if (checkedOutCustomers.has(data.customer)) {
+                markRowDone(tr, data, btn, balSpan, msgSpan);
+            }
         });
     }
 
@@ -578,10 +611,8 @@
         try {
             await execSpend(data.customer, data.amount, data.note);
 
-            btn.className = 'bendon-row-btn bendon-row-done';
-            btn.textContent = '✓ Done';
-            msgSpan.textContent = '';
             checkedOutCustomers.add(data.customer);
+            markRowDone(tr, data, btn, balSpan, msgSpan);
 
             // Update local balance
             if (balances[data.customer] !== undefined) {
@@ -663,11 +694,8 @@
                 await execSpend('Shared Deposit', data.amount, `Checkout for ${data.customer}: ${data.note}`);
 
                 // Success — update the row
-                rowBtn.className = 'bendon-row-btn bendon-row-done';
-                rowBtn.textContent = '✓ Done';
-                rowBtn.disabled = true;
-                msgSpan.textContent = '';
                 checkedOutCustomers.add(data.customer);
+                markRowDone(tr, data, rowBtn, balSpan, msgSpan);
 
                 // Sync dinbendon's UI
                 clickDinbendonPaid(tr);
@@ -685,6 +713,121 @@
                 confirmBtn.disabled = false;
                 cancelBtn.style.display = '';
             }
+        });
+    }
+
+    // ─── Mark Row Done + Cancel Button ───────────────────────
+
+    function markRowDone(tr, data, btn, balSpan, msgSpan) {
+        btn.className = 'bendon-row-btn bendon-row-done';
+        btn.textContent = '✓ Done';
+        btn.disabled = true;
+        if (msgSpan) msgSpan.textContent = '';
+
+        // Remove existing cancel button if any
+        const existingCancel = tr.querySelector('.bendon-row-cancel');
+        if (existingCancel) existingCancel.remove();
+
+        // Create cancel button next to Done
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'bendon-row-cancel';
+        cancelBtn.textContent = 'Cancel & Refund';
+        cancelBtn.title = 'Cancel checkout';
+        cancelBtn.addEventListener('click', function () {
+            handleCancelCheckout(tr, data, btn, cancelBtn, balSpan, msgSpan);
+        });
+
+        // Wrap Done + Cancel in a flex container
+        const wrap = btn.parentElement;
+        // Insert cancel button right after the Done button
+        if (btn.nextSibling) {
+            wrap.insertBefore(cancelBtn, btn.nextSibling);
+        } else {
+            wrap.appendChild(cancelBtn);
+        }
+    }
+
+    // ─── Cancel Checkout ─────────────────────────────────────
+
+    async function handleCancelCheckout(tr, data, doneBtn, cancelBtn, balSpan, msgSpan) {
+        cancelBtn.disabled = true;
+        cancelBtn.textContent = '⏳';
+        if (msgSpan) msgSpan.textContent = '';
+
+        const isCashCustomer = balances[data.customer] === null || balances[data.customer] === undefined;
+
+        try {
+            if (isCashCustomer) {
+                // Cash-paid: spend from Shared Deposit to withdraw refund
+                await execSpend('Shared Deposit', data.total, `Cancel refund for ${data.customer}: ${data.note}`);
+            } else {
+                // Personal account: topup back to customer
+                await execTopup(data.customer, data.total, `Cancel: ${data.note}`);
+                // Update local balance
+                balances[data.customer] += data.total;
+                if (balSpan) balSpan.textContent = `Balance: $${fmt(balances[data.customer])}`;
+            }
+
+            // Revert dinbendon payment status
+            clickDinbendonPaid(tr);
+
+            // Remove from checked-out set
+            checkedOutCustomers.delete(data.customer);
+
+            // Remove cancel button
+            cancelBtn.remove();
+
+            // Reset row to checkout-ready state
+            if (isCashCustomer) {
+                doneBtn.className = 'bendon-row-btn bendon-row-cash';
+                doneBtn.textContent = `💵 Pay $${fmt(data.amount)}`;
+                doneBtn.disabled = false;
+            } else {
+                doneBtn.className = 'bendon-row-btn bendon-row-checkout';
+                doneBtn.textContent = `Checkout $${fmt(data.amount)}`;
+                doneBtn.disabled = false;
+            }
+
+            // Show cash-return dialog for cash customers
+            if (isCashCustomer) {
+                showCashRefundDialog(data);
+            }
+
+        } catch (err) {
+            if (msgSpan) {
+                msgSpan.textContent = '✕ ' + err.message;
+                msgSpan.style.color = '#dc2626';
+            }
+            cancelBtn.textContent = 'Cancel & Refund';
+            cancelBtn.disabled = false;
+        }
+    }
+
+    function showCashRefundDialog(data) {
+        const overlay = document.createElement('div');
+        overlay.className = 'bendon-dialog-overlay';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'bendon-dialog';
+        dialog.innerHTML = `
+            <div class="bendon-refund-icon">💵</div>
+            <div class="bendon-dialog-title">Return Cash to Customer</div>
+            <div class="bendon-dialog-customer">${data.customer}</div>
+            <div class="bendon-dialog-amount">$${fmt(data.total)}</div>
+            <div class="bendon-refund-text">Please return this amount in cash.</div>
+            <div class="bendon-dialog-btns">
+                <button class="bendon-dialog-confirm" id="bendon-refund-ok">OK, Done</button>
+            </div>
+        `;
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        document.getElementById('bendon-refund-ok').addEventListener('click', function () {
+            overlay.remove();
+        });
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) overlay.remove();
         });
     }
 
@@ -751,9 +894,8 @@
                 } else {
                     // Success
                     if (btn) {
-                        btn.className = 'bendon-row-btn bendon-row-done';
-                        btn.textContent = '✓ Done';
-                        btn.disabled = true;
+                        const data = parseRow(tr);
+                        markRowDone(tr, data, btn, balSpan, msgSpan);
                     }
                     if (msgSpan) msgSpan.textContent = '';
 
