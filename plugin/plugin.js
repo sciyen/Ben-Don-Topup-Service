@@ -94,6 +94,13 @@
         });
     }
 
+    async function execTopup(customer, amount, note) {
+        return apiFetch('/api/topup', {
+            method: 'POST',
+            body: JSON.stringify({ customer, amount, note, idempotencyKey: uuid() }),
+        });
+    }
+
     async function execBatchCheckout(rows) {
         return apiFetch('/api/checkout/batch', {
             method: 'POST',
@@ -195,6 +202,8 @@
             .bendon-row-btn:disabled { opacity: 0.4; cursor: not-allowed; }
             .bendon-row-checkout { background: #22c55e; color: #fff; }
             .bendon-row-checkout:hover:not(:disabled) { background: #16a34a; }
+            .bendon-row-cash { background: #f59e0b; color: #fff; }
+            .bendon-row-cash:hover:not(:disabled) { background: #d97706; }
             .bendon-row-done { background: #dcfce7; color: #166534; }
             .bendon-row-fail { background: #fee2e2; color: #991b1b; }
             .bendon-row-msg { font-size: 10px; max-width: 120px; word-break: break-word; }
@@ -216,6 +225,57 @@
                 font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 600;
             }
             @keyframes bendon-spin { to { transform: rotate(360deg); } }
+
+            /* Pay in Cash dialog */
+            .bendon-dialog-overlay {
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                z-index: 999998; display: flex; justify-content: center; align-items: center;
+                background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(3px);
+            }
+            .bendon-dialog {
+                background: rgba(15, 12, 41, 0.97); color: #fff;
+                border: 1px solid rgba(255,255,255,0.15); border-radius: 16px;
+                padding: 24px 28px; min-width: 300px; max-width: 380px;
+                font-family: 'Segoe UI', system-ui, sans-serif;
+                box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+                text-align: center;
+            }
+            .bendon-dialog-title {
+                font-size: 16px; font-weight: 700; margin-bottom: 12px;
+            }
+            .bendon-dialog-customer {
+                font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 8px;
+            }
+            .bendon-dialog-amount {
+                font-size: 28px; font-weight: 700; color: #fbbf24; margin-bottom: 8px;
+                font-variant-numeric: tabular-nums;
+            }
+            .bendon-dialog-hint {
+                font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 16px;
+            }
+            .bendon-dialog-btns {
+                display: flex; gap: 8px; justify-content: center;
+            }
+            .bendon-dialog-confirm {
+                background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff;
+                border: none; border-radius: 10px; padding: 10px 20px;
+                font-size: 14px; font-weight: 700; cursor: pointer;
+                font-family: inherit; transition: all 0.15s ease;
+            }
+            .bendon-dialog-confirm:hover:not(:disabled) {
+                transform: translateY(-1px); box-shadow: 0 4px 16px rgba(245,158,11,0.4);
+            }
+            .bendon-dialog-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+            .bendon-dialog-cancel {
+                background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);
+                border: none; border-radius: 10px; padding: 10px 20px;
+                font-size: 13px; font-weight: 600; cursor: pointer;
+                font-family: inherit; transition: all 0.15s ease;
+            }
+            .bendon-dialog-cancel:hover { background: rgba(255,255,255,0.15); }
+            .bendon-dialog-msg {
+                margin-top: 10px; font-size: 12px; min-height: 16px;
+            }
         `;
         document.head.appendChild(style);
     }
@@ -392,7 +452,11 @@
             }
 
             btn.addEventListener('click', function () {
-                handleSingleCheckout(tr, data, btn, balSpan, msgSpan);
+                if (btn.classList.contains('bendon-row-cash')) {
+                    showPayCashDialog(data, tr, btn, balSpan, msgSpan);
+                } else {
+                    handleSingleCheckout(tr, data, btn, balSpan, msgSpan);
+                }
             });
 
             // Message
@@ -419,10 +483,18 @@
             const balSpan = td.querySelector('.bendon-balance');
             const btn = td.querySelector('.bendon-row-btn');
 
-            if (bal === undefined) {
-                balSpan.textContent = '—';
-                balSpan.className = 'bendon-balance';
-                btn.disabled = true;
+            if (bal === null || bal === undefined) {
+                balSpan.textContent = 'No account';
+                balSpan.className = 'bendon-balance bendon-balance-low';
+                if (btn.classList.contains('bendon-row-done')) return;
+                if (amount > 0) {
+                    btn.disabled = false;
+                    btn.className = 'bendon-row-btn bendon-row-cash';
+                    btn.textContent = `💵 Pay $${fmt(amount)}`;
+                } else {
+                    btn.disabled = true;
+                    btn.textContent = 'No amount';
+                }
                 return;
             }
 
@@ -535,6 +607,85 @@
         } finally {
             hideLoader();
         }
+    }
+
+    // ─── Pay in Cash Dialog ──────────────────────────────────
+
+    function showPayCashDialog(data, tr, rowBtn, balSpan, msgSpan) {
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'bendon-dialog-overlay';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'bendon-dialog';
+        dialog.innerHTML = `
+            <div class="bendon-dialog-title">💵 Pay in Cash</div>
+            <div class="bendon-dialog-customer">${data.customer}</div>
+            <div class="bendon-dialog-amount">$${fmt(data.amount)}</div>
+            <div class="bendon-dialog-hint">Top up & checkout via Shared Deposit</div>
+            <div class="bendon-dialog-btns">
+                <button class="bendon-dialog-cancel" id="bendon-cash-cancel">Cancel</button>
+                <button class="bendon-dialog-confirm" id="bendon-cash-confirm">💵 Pay & Checkout $${fmt(data.amount)}</button>
+            </div>
+            <div class="bendon-dialog-msg" id="bendon-cash-msg"></div>
+        `;
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        const confirmBtn = document.getElementById('bendon-cash-confirm');
+        const cancelBtn = document.getElementById('bendon-cash-cancel');
+        const dialogMsg = document.getElementById('bendon-cash-msg');
+
+        cancelBtn.addEventListener('click', function () {
+            overlay.remove();
+        });
+
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) overlay.remove();
+        });
+
+        confirmBtn.addEventListener('click', async function () {
+            confirmBtn.disabled = true;
+            cancelBtn.style.display = 'none';
+            confirmBtn.textContent = '⏳ Processing…';
+            dialogMsg.textContent = '';
+            dialogMsg.style.color = '';
+
+            try {
+                // Step 1: Top up Shared Deposit
+                dialogMsg.textContent = 'Topping up Shared Deposit…';
+                dialogMsg.style.color = '#fbbf24';
+                await execTopup('Shared Deposit', data.amount, `Cash from ${data.customer}: ${data.note}`);
+
+                // Step 2: Spend from Shared Deposit
+                dialogMsg.textContent = 'Checking out from Shared Deposit…';
+                await execSpend('Shared Deposit', data.amount, `Checkout for ${data.customer}: ${data.note}`);
+
+                // Success — update the row
+                rowBtn.className = 'bendon-row-btn bendon-row-done';
+                rowBtn.textContent = '✓ Done';
+                rowBtn.disabled = true;
+                msgSpan.textContent = '';
+                checkedOutCustomers.add(data.customer);
+
+                // Sync dinbendon's UI
+                clickDinbendonPaid(tr);
+
+                // Close dialog after brief success flash
+                dialogMsg.textContent = '✓ Success!';
+                dialogMsg.style.color = '#86efac';
+                confirmBtn.textContent = '✓ Done';
+                setTimeout(function () { overlay.remove(); }, 800);
+
+            } catch (err) {
+                dialogMsg.textContent = '❌ ' + err.message;
+                dialogMsg.style.color = '#fca5a5';
+                confirmBtn.textContent = 'Retry';
+                confirmBtn.disabled = false;
+                cancelBtn.style.display = '';
+            }
+        });
     }
 
     async function handleCheckoutAll() {

@@ -10,6 +10,7 @@
  * No stored balance — always computed from the full transaction history.
  */
 const { getAllTransactions } = require('./sheetsService');
+const { validateCustomerName } = require('./authorizationService');
 
 /**
  * Computes the current balance for a customer by summing all their
@@ -33,11 +34,11 @@ async function computeCustomerBalance(customerName) {
 
 /**
  * Computes balances for multiple customers in a single ledger fetch.
- * Much more efficient than calling computeCustomerBalance() for each customer.
+ * Returns null for customers that are not registered (unknown accounts).
  *
  * @param {string[]} customerNames - Array of customer names.
  * @param {Array<Object>} [existingTransactions] - Optional pre-fetched transactions to avoid redundant reads.
- * @returns {Promise<Object>} Map of { customerName: balance }.
+ * @returns {Promise<Object>} Map of { customerName: balance | null }.
  */
 async function computeBatchBalances(customerNames, existingTransactions = null) {
     const transactions = existingTransactions || await getAllTransactions();
@@ -45,6 +46,13 @@ async function computeBatchBalances(customerNames, existingTransactions = null) 
     const balances = {};
 
     for (const name of customerNames) {
+        // Check if customer is a known account
+        const validation = await validateCustomerName(name);
+        if (!validation.valid) {
+            balances[name] = null;
+            continue;
+        }
+
         const normalizedName = name.toLowerCase().trim();
 
         balances[name] = transactions
