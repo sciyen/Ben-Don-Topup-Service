@@ -515,6 +515,7 @@
             const bal = balances[customer];
             const balSpan = td.querySelector('.bendon-balance');
             const btn = td.querySelector('.bendon-row-btn');
+            const msgSpan = td.querySelector('.bendon-row-msg');
 
             if (bal === null || bal === undefined) {
                 balSpan.textContent = 'No account';
@@ -525,8 +526,9 @@
                     btn.className = 'bendon-row-btn bendon-row-cash';
                     btn.textContent = `💵 Pay $${fmt(amount)}`;
                 } else {
-                    btn.disabled = true;
-                    btn.textContent = 'No amount';
+                    const fullData = parseRow(tr);
+                    checkedOutCustomers.add(customer);
+                    markRowDone(tr, fullData, btn, balSpan, msgSpan);
                 }
                 return;
             }
@@ -538,8 +540,9 @@
 
             if (amount <= 0) {
                 balSpan.className = 'bendon-balance';
-                btn.disabled = true;
-                btn.textContent = 'No amount';
+                const fullData = parseRow(tr);
+                checkedOutCustomers.add(customer);
+                markRowDone(tr, fullData, btn, balSpan, msgSpan);
             } else if (bal >= amount) {
                 balSpan.className = 'bendon-balance bendon-balance-ok';
                 btn.disabled = false;
