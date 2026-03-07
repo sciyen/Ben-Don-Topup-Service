@@ -298,6 +298,44 @@
     color: #fca5a5;
 }
 
+/* --- Account Type Toggle --- */
+.account-toggle {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.account-toggle-btn {
+    flex: 1;
+    padding: 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.account-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.account-toggle-btn.active-personal {
+    background: rgba(108, 99, 255, 0.15);
+    border-color: rgba(108, 99, 255, 0.4);
+    color: #c4b5fd;
+}
+
+.account-toggle-btn.active-shared {
+    background: rgba(6, 182, 212, 0.15);
+    border-color: rgba(6, 182, 212, 0.4);
+    color: #67e8f9;
+}
+
 /* --- Balance Card --- */
 .balance-card {
     background: rgba(108, 99, 255, 0.08);

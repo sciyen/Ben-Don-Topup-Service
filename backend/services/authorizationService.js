@@ -21,6 +21,7 @@ const SALT_ROUNDS = 10;
 // Role sets for different permission levels
 const WRITE_ROLES = ['cashier', 'admin'];         // Can perform top-up and spend
 const READ_ROLES = ['cashier', 'admin', 'viewer', 'buyer']; // Can view balance and transactions
+const SHARED_DEPOSIT_CUSTOMER = 'Shared Deposit';  // Virtual shared account name
 
 /**
  * Gets an authenticated Google Sheets client (read-only).
@@ -231,4 +232,41 @@ async function getAllUserNames() {
     return names;
 }
 
-module.exports = { checkAuthorization, registerUser, loginUser, getUserInfo, getAllUserNames, WRITE_ROLES, READ_ROLES };
+/**
+ * Validates that a customer name corresponds to a known account.
+ * A valid customer is either:
+ *   - The shared deposit virtual account, OR
+ *   - An active user in the AuthorizedUsers sheet (case-insensitive match)
+ *
+ * @param {string} customerName - The customer name to validate.
+ * @returns {Promise<{valid: boolean, reason?: string}>}
+ */
+async function validateCustomerName(customerName) {
+    if (!customerName || typeof customerName !== 'string' || customerName.trim().length === 0) {
+        return { valid: false, reason: 'Customer name is required' };
+    }
+
+    const trimmed = customerName.trim();
+
+    // Accept the shared deposit virtual account
+    if (trimmed.toLowerCase() === SHARED_DEPOSIT_CUSTOMER.toLowerCase()) {
+        return { valid: true };
+    }
+
+    // Check against registered active users
+    const rows = await getAllAuthorizedUsers();
+    for (let i = 1; i < rows.length; i++) {
+        const [name, , , active] = rows[i];
+        if (
+            name &&
+            name.trim().toLowerCase() === trimmed.toLowerCase() &&
+            (active || '').toLowerCase().trim() === 'true'
+        ) {
+            return { valid: true };
+        }
+    }
+
+    return { valid: false, reason: `Unknown customer: "${trimmed}". Must be a registered user or Shared Deposit.` };
+}
+
+module.exports = { checkAuthorization, registerUser, loginUser, getUserInfo, getAllUserNames, validateCustomerName, WRITE_ROLES, READ_ROLES, SHARED_DEPOSIT_CUSTOMER };

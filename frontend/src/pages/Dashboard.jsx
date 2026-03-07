@@ -16,6 +16,9 @@ function Dashboard({ user, onLogout }) {
     // Mode toggle: 'topup' or 'spend'
     const [mode, setMode] = useState('topup');
 
+    // Account type toggle: 'personal' or 'shared'
+    const [accountType, setAccountType] = useState('personal');
+
     // Form state
     const [customer, setCustomer] = useState('');
     const [amount, setAmount] = useState('');
@@ -113,7 +116,8 @@ function Dashboard({ user, onLogout }) {
 
         // Client-side validation
         const parsedAmount = parseFloat(amount);
-        if (!customer.trim()) {
+        const effectiveCustomer = accountType === 'shared' ? 'Shared Deposit' : customer.trim();
+        if (!effectiveCustomer) {
             setMessage({ type: 'error', text: 'Customer name is required' });
             return;
         }
@@ -126,7 +130,7 @@ function Dashboard({ user, onLogout }) {
 
         try {
             const payload = {
-                customer: customer.trim(),
+                customer: effectiveCustomer,
                 amount: parsedAmount,
                 note: note.trim(),
                 idempotencyKey: uuidv4(),
@@ -148,7 +152,7 @@ function Dashboard({ user, onLogout }) {
             // Refresh data
             await fetchTransactions();
             // Force re-fetch balance for the same customer
-            await fetchBalance(customer.trim(), true);
+            await fetchBalance(effectiveCustomer, true);
         } catch (err) {
             setMessage({ type: 'error', text: `❌ ${err.message}` });
         } finally {
@@ -234,6 +238,32 @@ function Dashboard({ user, onLogout }) {
                             </button>
                         </div>
 
+                        {/* Account Type Toggle */}
+                        <div className="account-toggle">
+                            <button
+                                type="button"
+                                className={`account-toggle-btn ${accountType === 'personal' ? 'active-personal' : ''}`}
+                                onClick={() => {
+                                    setAccountType('personal');
+                                    setBalance(null);
+                                    setBalanceCustomer('');
+                                }}
+                            >
+                                👤 Personal
+                            </button>
+                            <button
+                                type="button"
+                                className={`account-toggle-btn ${accountType === 'shared' ? 'active-shared' : ''}`}
+                                onClick={() => {
+                                    setAccountType('shared');
+                                    setCustomer('');
+                                    fetchBalance('Shared Deposit', true);
+                                }}
+                            >
+                                🏦 Shared Deposit
+                            </button>
+                        </div>
+
                         {/* Balance Display */}
                         {balance !== null && (
                             <div className="balance-card">
@@ -251,34 +281,38 @@ function Dashboard({ user, onLogout }) {
                         )}
 
                         <form onSubmit={handleSubmit} className="topup-form">
-                            <div className="form-group">
-                                <label htmlFor="customer">Customer</label>
-                                <input
-                                    id="customer"
-                                    type="text"
-                                    value={customer}
-                                    onChange={(e) => {
-                                        setCustomer(e.target.value);
-                                        // Reset balance when customer changes
-                                        if (e.target.value.trim() !== balanceCustomer) {
-                                            setBalance(null);
-                                            setBalanceCustomer('');
-                                        }
-                                    }}
-                                    onBlur={() => fetchBalance(customer)}
-                                    placeholder="Type to search…"
-                                    disabled={submitting}
-                                    required
-                                    list="customer-names"
-                                    autoComplete="off"
-                                />
-                                <datalist id="customer-names">
-                                    {customerNames.map((name) => (
-                                        <option key={name} value={name} />
-                                    ))}
-                                </datalist>
-                                <span className="field-hint">Must match the exact name on dinbendon</span>
-                            </div>
+                            {accountType === 'personal' && (
+                                <div className="form-group">
+                                    <label htmlFor="customer">Customer</label>
+                                    <input
+                                        id="customer"
+                                        type="text"
+                                        value={customer}
+                                        onChange={(e) => {
+                                            setCustomer(e.target.value);
+                                            // Reset balance when customer changes
+                                            if (e.target.value.trim() !== balanceCustomer) {
+                                                setBalance(null);
+                                                setBalanceCustomer('');
+                                            }
+                                        }}
+                                        onBlur={() => fetchBalance(customer)}
+                                        placeholder="Type to search…"
+                                        disabled={submitting}
+                                        required
+                                        list="customer-names"
+                                        autoComplete="off"
+                                    />
+                                    <datalist id="customer-names">
+                                        {customerNames
+                                            .filter((name) => name !== 'Shared Deposit')
+                                            .map((name) => (
+                                                <option key={name} value={name} />
+                                            ))}
+                                    </datalist>
+                                    <span className="field-hint">Must match the exact name on dinbendon</span>
+                                </div>
+                            )}
 
                             <div className="form-group">
                                 <label htmlFor="amount">Amount</label>

@@ -13,7 +13,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../middleware/auth');
-const { checkAuthorization, registerUser, loginUser, getUserInfo, getAllUserNames, WRITE_ROLES, READ_ROLES } = require('../services/authorizationService');
+const { checkAuthorization, registerUser, loginUser, getUserInfo, getAllUserNames, validateCustomerName, WRITE_ROLES, READ_ROLES, SHARED_DEPOSIT_CUSTOMER } = require('../services/authorizationService');
 const { findByIdempotencyKey, appendTransaction, getTransactions } = require('../services/sheetsService');
 const { appendLog } = require('../services/docsService');
 const { computeCustomerBalance, computeBatchBalances } = require('../services/balanceService');
@@ -58,6 +58,8 @@ router.post('/login', async (req, res) => {
 router.get('/users/names', verifyToken, async (req, res) => {
     try {
         const names = await getAllUserNames();
+        // Include the shared deposit virtual account
+        names.push(SHARED_DEPOSIT_CUSTOMER);
         return res.status(200).json({ names });
     } catch (error) {
         console.error('Failed to fetch user names:', error.message || error);
@@ -114,6 +116,12 @@ router.post('/topup', verifyToken, async (req, res) => {
         }
         if (!idempotencyKey || typeof idempotencyKey !== 'string' || idempotencyKey.trim().length === 0) {
             return res.status(400).json({ error: 'Idempotency key is required' });
+        }
+
+        // 2b. Validate that customer is a known account
+        const customerValidation = await validateCustomerName(customer.trim());
+        if (!customerValidation.valid) {
+            return res.status(400).json({ error: customerValidation.reason });
         }
 
         // 3. Check for duplicate transaction
@@ -186,6 +194,12 @@ router.post('/spend', verifyToken, async (req, res) => {
         }
         if (!idempotencyKey || typeof idempotencyKey !== 'string' || idempotencyKey.trim().length === 0) {
             return res.status(400).json({ error: 'Idempotency key is required' });
+        }
+
+        // 2b. Validate that customer is a known account
+        const customerValidation = await validateCustomerName(customer.trim());
+        if (!customerValidation.valid) {
+            return res.status(400).json({ error: customerValidation.reason });
         }
 
         // 3. Check for duplicate transaction
